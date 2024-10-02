@@ -1,18 +1,24 @@
-// src/components/Home.js
 import React from 'react';
 import { Typography, Box, Button } from '@mui/material';
 
 const Home = () => {
     return (
-        <Box>
+        <Box
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            alignItems="center"
+            height="100%"
+            sx={{ marginTop: '-100px' }}
+        >
             <Typography variant="h2" gutterBottom>
                 Welcome to DayScape!
             </Typography>
             <Typography variant="h5" gutterBottom>
-                Your go-to app for planning day trips.
+                Your go-to site for planning day trips.
             </Typography>
-            <Button variant="contained" color="primary" href="/about">
-                Learn More
+            <Button variant="contained" color="primary" href="/trip" sx={{ marginTop: 5, padding: '12px 24px', fontSize: '1rem' }}>
+                New Trip
             </Button>
         </Box>
     );
