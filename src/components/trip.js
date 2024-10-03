@@ -1,26 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { Box, TextField, Button } from '@mui/material';
-import { GoogleMap, LoadScript, Autocomplete } from '@react-google-maps/api';
+import React, { useState } from 'react';
+import { Box, TextField } from '@mui/material';
+import { LoadScript, GoogleMap, Autocomplete } from '@react-google-maps/api';
+
+const libraries = ['places'];
 
 const Trip = () => {
-    const [place, setPlace] = useState(null);
-    const [map, setMap] = useState(null);
     const [autocomplete, setAutocomplete] = useState(null);
-
-    useEffect(() => {
-        if (autocomplete) {
-            console.log('Autocomplete is initialized:', autocomplete);
-        } else {
-            console.log('Autocomplete is not initialized yet.');
-        }
-    }, [autocomplete]);
+    const [map, setMap] = useState(null);
+    const [place, setPlace] = useState(null);
 
     const handlePlaceChanged = () => {
         if (autocomplete) {
             const place = autocomplete.getPlace();
+            console.log('Place:', place);
             setPlace(place);
             if (place.geometry) {
-                map.panTo(place.geometry.location);
+                console.log('Place geometry:', place.geometry.location);
+                if (map) {
+                    map.panTo(place.geometry.location);
+                } else {
+                    console.error('Map is not initialized.');
+                }
+            } else {
+                console.error('No geometry found for the place.');
             }
         } else {
             console.error('Autocomplete is not initialized.');
@@ -29,7 +31,7 @@ const Trip = () => {
 
     return (
         <Box display="flex" flexDirection="column" alignItems="center" height="100%">
-            <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={['places']}>
+            <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries}>
                 <Autocomplete onLoad={autocomplete => setAutocomplete(autocomplete)} onPlaceChanged={handlePlaceChanged}>
                     <TextField label="Enter a place" variant="outlined" />
                 </Autocomplete>
