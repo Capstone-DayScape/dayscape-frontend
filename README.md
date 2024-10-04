@@ -2,11 +2,23 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+Ensure you have Node.JS v20.18.0 installed to your system, \
+which should in turn have npm 10.8.2 installed automatically with it.
+
+If the terminal states that the npm commands are unrecognizable, and you are on Windows, \
+try manually adding the npm folder to your `\AppData\Roaming` directory on Windows systems.
+
 ## Available Scripts
 
-In the project directory, you can run:
+For first time users, ensure you have the `node_modules` installed via:
+
+### `npm i`
+
+If you have your modules installed, you can run:
 
 ### `npm start`
+
+Within the project directory. \
 
 Runs the app in the development mode.\
 Open [http://localhost:3000](http://localhost:3000) to view it in your browser.

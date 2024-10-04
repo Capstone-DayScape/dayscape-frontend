@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleMap, LoadScript, Polyline, Autocomplete, InfoWindowF } from '@react-google-maps/api';
-import { Box, TextField } from '@mui/material';
+import { GoogleMap, LoadScript, Polyline, Autocomplete, Marker } from '@react-google-maps/api';
+import { Box, TextField, Typography } from '@mui/material';
 
 // Load the necessary libraries for Google Maps
 const libraries = ['places', 'marker'];
@@ -11,11 +11,10 @@ const Trip = () => {
     const [selectedLocation, setSelectedLocation] = useState(null);
     const [nearbyPlaces, setNearbyPlaces] = useState([]);
     const [AdvancedMarkerElement, setAdvancedMarkerElement] = useState(null);
-    const [infoWindowPosition, setInfoWindowPosition] = useState(null);
-    const [infoWindowContent, setInfoWindowContent] = useState('');
+    const [markers, setMarkers] = useState([]);
+    const [travelTimes, setTravelTimes] = useState([]); // State to store travel times
     const autocompleteRef = useRef(null);
     const mapRef = useRef(null);
-    const markersRef = useRef([]);
 
     const handleLoad = () => {
         const loadGoogleMaps = async () => {
@@ -30,67 +29,6 @@ const Trip = () => {
         loadGoogleMaps();
     };
 
-    useEffect(() => {
-        if (AdvancedMarkerElement && mapRef.current) {
-            // Clear existing markers
-            markersRef.current.forEach(marker => marker.map = null);
-            markersRef.current = [];
-
-            // Add marker for selected location
-            if (selectedLocation && selectedLocation.name) {
-                const marker = new AdvancedMarkerElement({
-                    map: mapRef.current,
-                    position: selectedLocation,
-                    title: selectedLocation.name,
-                    content: createCustomMarker(selectedLocation.name),
-                });
-                marker.addListener('click', () => {
-                    setInfoWindowPosition(selectedLocation);
-                    setInfoWindowContent(selectedLocation.name);
-                });
-                markersRef.current.push(marker);
-            }
-
-            // Add markers for nearby places
-            nearbyPlaces.forEach(place => {
-                if (place.name) {
-                    const marker = new AdvancedMarkerElement({
-                        map: mapRef.current,
-                        position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-                        title: place.name,
-                        content: createCustomMarker(place.name),
-                    });
-                    marker.addListener('click', () => {
-                        setInfoWindowPosition({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
-                        setInfoWindowContent(place.name);
-                    });
-                    markersRef.current.push(marker);
-                }
-            });
-        }
-    }, [AdvancedMarkerElement, selectedLocation, nearbyPlaces]);
-
-    // Function to create a custom marker element
-    const createCustomMarker = (title) => {
-        if (!title) return null; // Ensure title is defined
-        const markerDiv = document.createElement('div');
-        markerDiv.style.backgroundColor = '#4400DD'; // Blue color
-        markerDiv.style.padding = '5px 10px'; // Add padding for better spacing
-        markerDiv.style.borderRadius = '15%';
-        markerDiv.style.display = 'flex';
-        markerDiv.style.alignItems = 'center';
-        markerDiv.style.justifyContent = 'center';
-        markerDiv.style.color = '#FFFFFF';
-        markerDiv.style.fontSize = '12px';
-        markerDiv.style.fontWeight = 'bold';
-        markerDiv.style.textAlign = 'center'; // Center text horizontally
-        markerDiv.style.lineHeight = '1.2'; // Adjust line height for vertical alignment
-        markerDiv.style.maxWidth = '150px'; // Set a maximum width for the bubble
-        markerDiv.style.wordWrap = 'break-word'; // Allow text to wrap within the bubble
-        markerDiv.innerText = title; // Display the full title
-        return markerDiv;
-    };
-
     // Handle the event when a place is selected from the Autocomplete
     const handlePlaceChanged = () => {
         const place = autocompleteRef.current.getPlace();
@@ -102,8 +40,7 @@ const Trip = () => {
             };
             setSelectedLocation(location); // Set the selected location state
             setMapCenter(location); // Center the map on the selected location
-            setInfoWindowPosition(location); // Set the info window position
-            setInfoWindowContent(place.name); // Set the info window content to the actual name
+            setMarkers([{ position: location, label: '1', name: place.name }]); // Set the initial marker
             fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
         }
     };
@@ -123,6 +60,15 @@ const Trip = () => {
                 // Sort results by rating and take the top 3
                 const sortedResults = results.sort((a, b) => b.rating - a.rating).slice(0, 3);
                 setNearbyPlaces(sortedResults); // Update state with the top 3 places
+
+                // Set markers for the nearby places
+                const newMarkers = sortedResults.map((place, index) => ({
+                    position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+                    label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
+                    name: place.name // Set the name of the place
+                }));
+                setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
+
                 calculateRoute(location, sortedResults); // Calculate the route including these places
             }
         });
@@ -151,52 +97,100 @@ const Trip = () => {
                     lng: point.lng(),
                 }));
                 setRoutePath(route); // Update state with the route path
+
+                // Extract travel times from the directions result
+                const times = result.routes[0].legs.map(leg => leg.duration.text);
+                setTravelTimes(times); // Update state with the travel times
             }
         });
     };
 
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
-            <Box>
-                <Box mb={2}>
-                    <Autocomplete
-                        onLoad={autocomplete => (autocompleteRef.current = autocomplete)} // Set the reference to the Autocomplete component
-                        onPlaceChanged={handlePlaceChanged} // Handle the event when a place is selected
-                    >
-                        <TextField label="Select Location" variant="outlined" fullWidth />
-                    </Autocomplete>
+            <Box display="flex" height="80vh" alignItems="center" justifyContent="center">
+                <Box width="25%" padding="10px" display="flex" flexDirection="column" alignItems="center" overflow="auto" mr={4}>
+                    {markers.map((marker, index) => (
+                        <Box key={index} display="flex" flexDirection="column" alignItems="center" mb={2}>
+                            <Box
+                                display="flex"
+                                flexDirection="column"
+                                alignItems="center"
+                                justifyContent="center"
+                                bgcolor="primary.main"
+                                color="white"
+                                borderRadius="16px"
+                                padding="10px"
+                                width="100%"
+                                minWidth="250px"
+                                minHeight="50px"
+                                textAlign="center"
+                                boxShadow={3}
+                            >
+                                <Typography variant="h6">{marker.name}</Typography>
+                            </Box>
+                            {index < markers.length - 1 && (
+                                <Box display="flex" alignItems="center">
+                                    <Box
+                                        position="relative"
+                                        width="2px"
+                                        height="65px"
+                                        bgcolor="#686879"
+                                        mb={-2}
+                                        sx={{
+                                            '&::after': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                bottom: 0,
+                                                left: '50%',
+                                                transform: 'translateX(-50%)',
+                                                borderLeft: '5px solid transparent',
+                                                borderRight: '5px solid transparent',
+                                                borderTop: '10px solid #686879',
+                                            },
+                                        }}
+                                    />
+                                    <Typography variant="body2" ml={2} color="#686879">
+                                        {travelTimes[index]}
+                                    </Typography>
+                                </Box>
+                            )}
+                        </Box>
+                    ))}
                 </Box>
-                <GoogleMap
-                    id="map"
-                    mapContainerStyle={{ height: '400px', width: '100%' }}
-                    zoom={14}
-                    center={mapCenter}
-                    onLoad={map => {
-                        mapRef.current = map;
-                        map.setMapId('651e26fab50abd83');
-                    }}
-                >
-                    {routePath.length > 0 && (
-                        <>
+                <Box flex={1} display="flex" flexDirection="column" alignItems="center">
+                    <Box mb={2} width="100%">
+                        <Autocomplete
+                            onLoad={autocomplete => (autocompleteRef.current = autocomplete)} // Set the reference to the Autocomplete component
+                            onPlaceChanged={handlePlaceChanged} // Handle the event when a place is selected
+                        >
+                            <TextField label="Select Location" variant="outlined" fullWidth />
+                        </Autocomplete>
+                    </Box>
+                    <GoogleMap
+                        id="map"
+                        mapContainerStyle={{ height: '400px', width: '100%' }}
+                        zoom={14}
+                        center={mapCenter}
+                        onLoad={map => {
+                            mapRef.current = map;
+                            map.setMapId('651e26fab50abd83');
+                        }}
+                    >
+                        {markers.map((marker, index) => (
+                            <Marker key={index} position={marker.position} label={marker.label} />
+                        ))}
+                        {routePath.length > 0 && (
                             <Polyline
                                 path={routePath} // Set the path of the polyline
                                 options={{
-                                    strokeColor: '#DD0066', // Change to a nicer color
+                                    strokeColor: '#DD0066',
                                     strokeOpacity: 0.75,
                                     strokeWeight: 6,
                                 }}
                             />
-                        </>
-                    )}
-                    {infoWindowPosition && (
-                        <InfoWindowF
-                            position={infoWindowPosition}
-                            onCloseClick={() => setInfoWindowPosition(null)}
-                        >
-                            <div>{infoWindowContent}</div>
-                        </InfoWindowF>
-                    )}
-                </GoogleMap>
+                        )}
+                    </GoogleMap>
+                </Box>
             </Box>
         </LoadScript>
     );
