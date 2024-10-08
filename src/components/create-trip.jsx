@@ -1,5 +1,18 @@
 import React from "react";
-import { Box, Button, Checkbox, Chip, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
+import {
+    Box,
+    Button,
+    Checkbox,
+    Chip,
+    FormControl,
+    FormControlLabel,
+    InputLabel,
+    MenuItem,
+    Select,
+    Stack,
+    TextField,
+    Typography
+} from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
@@ -17,11 +30,12 @@ export default function CreateTrip() {
             latitude: null,
             longitude: null
         },
-        globalPreferences: [],
+        transportationMode: "",
+        globalTags: [],
         days: [
             {
                 index: 0,
-                dayPreferences: [],
+                dayTags: [],
                 routeStops: [],
                 usePreviousStops: false
             }
@@ -31,6 +45,7 @@ export default function CreateTrip() {
     const [startingAddress, setStartingAddress] = React.useState("");
     const [tagInput, setTagInput] = React.useState("");
     const [tags, setTags] = React.useState([]);
+    const [transportMode, setTransportMode] = React.useState("");
     const [usePrevStops, setUsePrevStops] = React.useState(false);
 
     const autocompleteRef = React.useRef(null);
@@ -46,8 +61,9 @@ export default function CreateTrip() {
 
         data.startingLocation.address = startingAddress;
         data.startingDate = dateObject.hour(0).minute(0).second(0).millisecond(0).toISOString();
-        data.days[0].dayPreferences = tags;
+        data.days[0].dayTags = tags;
         data.days[0].usePreviousStops = usePrevStops;
+        data.transportationMode = transportMode;
 
         // Stores data into session storage
         window.sessionStorage.setItem("data", JSON.stringify(data));
@@ -83,12 +99,27 @@ export default function CreateTrip() {
                         value={dateObject}
                         onChange={(newDate) => setDateObject(newDate)}
                     />
+                    <FormControl fullWidth>
+                        <InputLabel id="transportLabel">Mode of Transportation</InputLabel>
+                        <Select
+                            labelId="transportLabel"
+                            label="Mode of Transportation"
+                            variant="outlined"
+                            value={transportMode}
+                            onChange={(event) => setTransportMode(event.target.value)}>
+                            <MenuItem value="driving">Driving</MenuItem>
+                            <MenuItem value="transit">Transit</MenuItem>
+                            <MenuItem value="bicycling">Bicycling</MenuItem>
+                            <MenuItem value="walking">Walking</MenuItem>
+                        </Select>
+                    </FormControl>
                     <Stack direction="row" spacing={2}>
                         <TextField
                             label="Tags"
                             name="tags"
                             value={tagInput}
                             onChange={(e) => setTagInput(e.target.value)}
+                            sx={{ width: 2 / 3 }}
                         />
                         <Button
                             variant="outlined"
@@ -96,12 +127,13 @@ export default function CreateTrip() {
                                 if (tagInput.length > 0 && !tags.includes(tagInput)) {
                                     setTags([...tags, tagInput]);
                                 }
-                            }}>
-                            Add
+                            }}
+                            sx={{ width: 1 / 3 }}>
+                            Add Tag
                         </Button>
                     </Stack>
                     {tags.length > 0 && (
-                        <Stack direction="row" spacing={2}>
+                        <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }} useFlexGap>
                             {tags.map((tag, index) => (
                                 <Chip
                                     label={tag}
