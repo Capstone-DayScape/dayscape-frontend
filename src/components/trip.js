@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { GoogleMap, LoadScript, Polyline, Autocomplete, Marker } from '@react-google-maps/api';
-import { Box, TextField, Typography } from '@mui/material';
+import React, { useState, useRef } from "react";
+import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
+import { Box, Typography } from "@mui/material";
 
 // Load the necessary libraries for Google Maps
-const libraries = ['places', 'marker'];
+const libraries = ["places", "marker"];
 
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
@@ -13,7 +13,6 @@ const Trip = () => {
     const [AdvancedMarkerElement, setAdvancedMarkerElement] = useState(null);
     const [markers, setMarkers] = useState([]);
     const [travelTimes, setTravelTimes] = useState([]); // State to store travel times
-    const autocompleteRef = useRef(null);
     const mapRef = useRef(null);
 
     const handleLoad = () => {
@@ -26,33 +25,30 @@ const Trip = () => {
                 console.error("Google Maps JavaScript API is not loaded.");
             }
         };
-        loadGoogleMaps();
-    };
-
-    // Handle the event when a place is selected from the Autocomplete
-    const handlePlaceChanged = () => {
-        const place = autocompleteRef.current.getPlace();
-        if (place.geometry) {
-            const location = {
-                lat: place.geometry.location.lat(),
-                lng: place.geometry.location.lng(),
-                name: place.name, // Set the actual name of the selected location
-            };
-            setSelectedLocation(location); // Set the selected location state
-            setMapCenter(location); // Center the map on the selected location
-            setMarkers([{ position: location, label: '1', name: place.name }]); // Set the initial marker
-            fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
-        }
+        loadGoogleMaps().then(() => {
+            const data = JSON.parse(window.sessionStorage.getItem("data"));
+            if (data) {
+                const location = {
+                    lat: data.startingLocation.latitude,
+                    lng: data.startingLocation.longitude,
+                    name: data.startingLocation.name
+                };
+                setSelectedLocation(location); // Set the selected location state
+                setMapCenter(location); // Center the map on the selected location
+                setMarkers([{ position: location, label: "1", name: data.startingLocation.name }]); // Set the initial marker
+                fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
+            }
+        });
     };
 
     // Fetch nearby places using the Google Places API
     const fetchNearbyPlaces = (location) => {
-        const service = new window.google.maps.places.PlacesService(document.createElement('div')); // Create a new PlacesService instance
+        const service = new window.google.maps.places.PlacesService(document.createElement("div")); // Create a new PlacesService instance
         const request = {
             location,
-            radius: '5000', // Search within a 5000 meter radius
-            type: ['restaurant'], // This is probably how we will filter out the places we want to visit by trip preferences
-            rankBy: window.google.maps.places.RankBy.PROMINENCE, // Rank results by prominence
+            radius: "5000", // Search within a 5000-meter radius
+            type: ["restaurant"], // This is probably how we will filter out the places we want to visit by trip preferences
+            rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
         };
 
         service.nearbySearch(request, (results, status) => {
@@ -67,7 +63,7 @@ const Trip = () => {
                     label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
                     name: place.name // Set the name of the place
                 }));
-                setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
+                setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
 
                 calculateRoute(location, sortedResults); // Calculate the route including these places
             }
@@ -77,38 +73,48 @@ const Trip = () => {
     // Calculate the route between the selected location and the nearby places
     const calculateRoute = (origin, places) => {
         const directionsService = new window.google.maps.DirectionsService(); // Create a new DirectionsService instance
-        const waypoints = places.map(place => ({
+        const waypoints = places.map((place) => ({
             location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }, // Convert place geometry to lat/lng
-            stopover: true, // Indicate that these are stopover points
+            stopover: true // Indicate that these are stopover points
         }));
 
         const request = {
             origin,
             destination: waypoints[waypoints.length - 1].location, // Set the last waypoint as the destination
             waypoints,
-            travelMode: window.google.maps.TravelMode.DRIVING, // Set the travel mode to driving
+            travelMode: window.google.maps.TravelMode.DRIVING // Set the travel mode to driving
         };
 
         directionsService.route(request, (result, status) => {
             if (status === window.google.maps.DirectionsStatus.OK) {
                 // Convert the route to an array of lat/lng points
-                const route = result.routes[0].overview_path.map(point => ({
+                const route = result.routes[0].overview_path.map((point) => ({
                     lat: point.lat(),
-                    lng: point.lng(),
+                    lng: point.lng()
                 }));
                 setRoutePath(route); // Update state with the route path
 
                 // Extract travel times from the directions result
-                const times = result.routes[0].legs.map(leg => leg.duration.text);
+                const times = result.routes[0].legs.map((leg) => leg.duration.text);
                 setTravelTimes(times); // Update state with the travel times
             }
         });
     };
 
     return (
-        <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
+        <LoadScript
+            googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
+            libraries={libraries}
+            onLoad={handleLoad}>
             <Box display="flex" height="80vh" alignItems="center" justifyContent="center">
-                <Box width="25%" padding="10px" display="flex" flexDirection="column" alignItems="center" overflow="auto" mr={4}>
+                <Box
+                    width="25%"
+                    padding="10px"
+                    display="flex"
+                    flexDirection="column"
+                    alignItems="center"
+                    overflow="auto"
+                    mr={4}>
                     {markers.map((marker, index) => (
                         <Box key={index} display="flex" flexDirection="column" alignItems="center" mb={2}>
                             <Box
@@ -124,8 +130,7 @@ const Trip = () => {
                                 minWidth="250px"
                                 minHeight="50px"
                                 textAlign="center"
-                                boxShadow={3}
-                            >
+                                boxShadow={3}>
                                 <Typography variant="h6">{marker.name}</Typography>
                             </Box>
                             {index < markers.length - 1 && (
@@ -137,16 +142,16 @@ const Trip = () => {
                                         bgcolor="#686879"
                                         mb={-2}
                                         sx={{
-                                            '&::after': {
+                                            "&::after": {
                                                 content: '""',
-                                                position: 'absolute',
+                                                position: "absolute",
                                                 bottom: 0,
-                                                left: '50%',
-                                                transform: 'translateX(-50%)',
-                                                borderLeft: '5px solid transparent',
-                                                borderRight: '5px solid transparent',
-                                                borderTop: '10px solid #686879',
-                                            },
+                                                left: "50%",
+                                                transform: "translateX(-50%)",
+                                                borderLeft: "5px solid transparent",
+                                                borderRight: "5px solid transparent",
+                                                borderTop: "10px solid #686879"
+                                            }
                                         }}
                                     />
                                     <Typography variant="body2" ml={2} color="#686879">
@@ -158,24 +163,15 @@ const Trip = () => {
                     ))}
                 </Box>
                 <Box flex={1} display="flex" flexDirection="column" alignItems="center">
-                    <Box mb={2} width="100%">
-                        <Autocomplete
-                            onLoad={autocomplete => (autocompleteRef.current = autocomplete)} // Set the reference to the Autocomplete component
-                            onPlaceChanged={handlePlaceChanged} // Handle the event when a place is selected
-                        >
-                            <TextField label="Select Location" variant="outlined" fullWidth />
-                        </Autocomplete>
-                    </Box>
                     <GoogleMap
                         id="map"
-                        mapContainerStyle={{ height: '400px', width: '100%' }}
+                        mapContainerStyle={{ height: "400px", width: "100%" }}
                         zoom={14}
                         center={mapCenter}
-                        onLoad={map => {
+                        onLoad={(map) => {
                             mapRef.current = map;
-                            map.setMapId('651e26fab50abd83');
-                        }}
-                    >
+                            map.setMapId("651e26fab50abd83");
+                        }}>
                         {markers.map((marker, index) => (
                             <Marker key={index} position={marker.position} label={marker.label} />
                         ))}
@@ -183,9 +179,9 @@ const Trip = () => {
                             <Polyline
                                 path={routePath} // Set the path of the polyline
                                 options={{
-                                    strokeColor: '#DD0066',
+                                    strokeColor: "#DD0066",
                                     strokeOpacity: 0.75,
-                                    strokeWeight: 6,
+                                    strokeWeight: 6
                                 }}
                             />
                         )}
