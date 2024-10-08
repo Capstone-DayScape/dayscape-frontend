@@ -26,19 +26,21 @@ const Trip = () => {
             }
         };
         loadGoogleMaps().then(() => {
-            const data = JSON.parse(window.sessionStorage.getItem("data"));
-            if (data) {
-                const location = {
-                    lat: data.startingLocation.latitude,
-                    lng: data.startingLocation.longitude,
-                    name: data.startingLocation.name
-                };
-                setSelectedLocation(location); // Set the selected location state
-                setMapCenter(location); // Center the map on the selected location
-                setMarkers([{ position: location, label: "1", name: data.startingLocation.name }]); // Set the initial marker
-                fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
-            }
+            setTimeout(getData, 1); // Fixes first marker not appearing
         });
+    };
+    const getData = () => {
+        const data = JSON.parse(window.sessionStorage.getItem("data"));
+        if (data) {
+            const location = {
+                lat: data.startingLocation.latitude,
+                lng: data.startingLocation.longitude,
+            };
+            setSelectedLocation(location); // Set the selected location state
+            setMapCenter(location); // Center the map on the selected location
+            setMarkers([{ position: location, label: "1", name: data.startingLocation.name }]); // Set the initial marker
+            fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
+        }
     };
 
     // Fetch nearby places using the Google Places API
