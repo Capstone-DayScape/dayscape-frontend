@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Card, CardContent, TextField, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 
 // Load the necessary libraries for Google Maps
 const libraries = ["places", "marker"];
@@ -14,6 +14,9 @@ const Trip = () => {
     const [markers, setMarkers] = useState([]);
     const [travelTimes, setTravelTimes] = useState([]); // State to store travel times
     const mapRef = useRef(null);
+    const [selectedNode, setSelectedNode] = useState(null);
+    const [notes, setNotes] = useState(""); // State to store notes
+    const [durations, setDurations] = useState({}); // State to store durations
 
     const handleLoad = () => {
         const loadGoogleMaps = async () => {
@@ -29,6 +32,7 @@ const Trip = () => {
             setTimeout(getData, 1); // Fixes first marker not appearing
         });
     };
+
     const getData = () => {
         const data = JSON.parse(window.sessionStorage.getItem("data"));
         if (data) {
@@ -38,19 +42,30 @@ const Trip = () => {
             };
             setSelectedLocation(location); // Set the selected location state
             setMapCenter(location); // Center the map on the selected location
-            setMarkers([{ position: location, label: "1", name: data.startingLocation.name }]); // Set the initial marker
+            setMarkers([{
+                position: location,
+                label: "1",
+                name: data.startingLocation.name,
+                info: data.startingLocation.address,
+                rating: data.startingLocation.user_ratings_total || "N/A",
+            }]);
             fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
         }
     };
 
     // Fetch nearby places using the Google Places API
     const fetchNearbyPlaces = (location) => {
+        if (!window.google || !window.google.maps || !window.google.maps.places) {
+            console.error("Google Maps Places API is not loaded.");
+            return;
+        }
+
         const service = new window.google.maps.places.PlacesService(document.createElement("div")); // Create a new PlacesService instance
         const request = {
             location,
             radius: "5000", // Search within a 5000-meter radius
             type: ["restaurant"], // This is probably how we will filter out the places we want to visit by trip preferences
-            rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
+            rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence, this is how important Google considers this place to be
         };
 
         service.nearbySearch(request, (results, status) => {
@@ -63,11 +78,23 @@ const Trip = () => {
                 const newMarkers = sortedResults.map((place, index) => ({
                     position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
                     label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
-                    name: place.name // Set the name of the place
+                    name: place.name, // Set the name of the place
+                    info: place.vicinity, // Set the info of the place
+                    rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
+                    duration: { hours: 2, minutes: 0 } // Default duration
                 }));
                 setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
 
+                // Set default durations for the new markers
+                const newDurations = sortedResults.reduce((acc, place) => {
+                    acc[place.name] = { hours: 2, minutes: 0 };
+                    return acc;
+                }, {});
+                setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
+
                 calculateRoute(location, sortedResults); // Calculate the route including these places
+            } else {
+                console.error("PlacesServiceStatus not OK:", status);
             }
         });
     };
@@ -103,6 +130,62 @@ const Trip = () => {
         });
     };
 
+    const handleNotesChange = (e) => {
+        const { value } = e.target;
+        setNotes((prevNotes) => ({
+            ...prevNotes,
+            [selectedNode.name]: value
+        }));
+    };
+
+    const handleHoursChange = (e) => {
+        const { value } = e.target;
+        setDurations((prevDurations) => ({
+            ...prevDurations,
+            [selectedNode.name]: {
+                ...prevDurations[selectedNode.name],
+                hours: value
+            }
+        }));
+    };
+
+    const handleMinutesChange = (e) => {
+        const { value } = e.target;
+        setDurations((prevDurations) => ({
+            ...prevDurations,
+            [selectedNode.name]: {
+                ...prevDurations[selectedNode.name],
+                minutes: value
+            }
+        }));
+    };
+
+    const calculateTotalTripDuration = () => {
+        let totalMinutes = 0;
+    
+        // Add durations spent at each location, excluding the initial destination
+        Object.entries(durations).forEach(([name, duration], index) => {
+            const locationMinutes = (parseInt(duration.hours) || 0) * 60 + (parseInt(duration.minutes) || 0);
+            totalMinutes += locationMinutes;
+        });
+    
+        // Add travel times between locations
+        travelTimes.forEach(time => {
+            const [value, unit] = time.split(' ');
+            let travelMinutes = 0;
+            if (unit.includes('hour')) {
+                travelMinutes = parseInt(value) * 60;
+            } else if (unit.includes('min')) {
+                travelMinutes = parseInt(value);
+            }
+            totalMinutes += travelMinutes;
+        });
+    
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        return `${hours} hours and ${minutes} minutes`;
+    };
+
     return (
         <LoadScript
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
@@ -118,13 +201,20 @@ const Trip = () => {
                     overflow="auto"
                     mr={4}>
                     {markers.map((marker, index) => (
-                        <Box key={index} display="flex" flexDirection="column" alignItems="center" mb={2}>
+                        <Box
+                            key={index}
+                            display="flex"
+                            flexDirection="column"
+                            alignItems="center"
+                            mb={2}
+                            onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
+                            sx={{ cursor: "pointer" }}>
                             <Box
                                 display="flex"
                                 flexDirection="column"
                                 alignItems="center"
                                 justifyContent="center"
-                                bgcolor="primary.main"
+                                bgcolor={selectedNode?.name === marker.name ? "#4caf50" : "primary.main"}
                                 color="white"
                                 borderRadius="16px"
                                 padding="10px"
@@ -163,8 +253,11 @@ const Trip = () => {
                             )}
                         </Box>
                     ))}
+                    <Typography variant="body1" mt={2} align="center" color="#686879">
+                        Total Time: {calculateTotalTripDuration()}
+                    </Typography>
                 </Box>
-                <Box flex={1} display="flex" flexDirection="column" alignItems="center">
+                <Box flex={1} display="flex" flexDirection="column" alignItems="center" width="75%">
                     <GoogleMap
                         id="map"
                         mapContainerStyle={{ height: "400px", width: "100%" }}
@@ -175,7 +268,12 @@ const Trip = () => {
                             map.setMapId("651e26fab50abd83");
                         }}>
                         {markers.map((marker, index) => (
-                            <Marker key={index} position={marker.position} label={marker.label} />
+                            <Marker
+                                key={index}
+                                position={marker.position}
+                                label={marker.label}
+                                onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
+                            />
                         ))}
                         {routePath.length > 0 && (
                             <Polyline
@@ -188,6 +286,58 @@ const Trip = () => {
                             />
                         )}
                     </GoogleMap>
+                    {selectedNode && (
+                        <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2 }}>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom>
+                                    {selectedNode.name}
+                                </Typography>
+                                <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: 'gray' }}>
+                                    {selectedNode.info}
+                                </Typography>
+                                {selectedNode.label !== "1" && (
+                                    <>
+                                        <Typography variant="body1" gutterBottom>
+                                            Prominence: {selectedNode.rating}
+                                        </Typography>
+                                        <FormControl fullWidth variant="outlined" margin="normal">
+                                            <Typography variant="body1">
+                                                Duration:
+                                            </Typography>
+                                            <Box display="flex">
+                                                <TextField
+                                                    label="Hours"
+                                                    type="number"
+                                                    variant="outlined"
+                                                    margin="normal"
+                                                    value={durations[selectedNode.name]?.hours || 2}
+                                                    onChange={handleHoursChange}
+                                                    style={{ marginRight: '10px' }}
+                                                />
+                                                <TextField
+                                                    label="Minutes"
+                                                    type="number"
+                                                    variant="outlined"
+                                                    margin="normal"
+                                                    value={durations[selectedNode.name]?.minutes || 0}
+                                                    onChange={handleMinutesChange}
+                                                />
+                                            </Box>
+                                        </FormControl>
+                                    </>
+                                )}
+                                <TextField
+                                    label="Enter Notes"
+                                    multiline
+                                    rows={4}
+                                    variant="outlined"
+                                    fullWidth
+                                    value={notes[selectedNode.name] || ""}
+                                    onChange={handleNotesChange}
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
                 </Box>
             </Box>
         </LoadScript>
