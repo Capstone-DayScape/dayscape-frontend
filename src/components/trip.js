@@ -8,9 +8,13 @@ const libraries = ["places", "marker"];
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [routePath, setRoutePath] = useState([]);
-    const [selectedLocation, setSelectedLocation] = useState(null);
-    const [nearbyPlaces, setNearbyPlaces] = useState([]);
-    const [AdvancedMarkerElement, setAdvancedMarkerElement] = useState(null);
+    // const [selectedLocation, setSelectedLocation] = useState(null);
+    // const [nearbyPlaces, setNearbyPlaces] = useState([]);
+    // const [AdvancedMarkerElement, setAdvancedMarkerElement] = useState(null);
+    const [setSelectedLocation] = useState(null);
+    const [setNearbyPlaces] = useState([]);
+    const [setAdvancedMarkerElement] = useState(null);
+    
     const [markers, setMarkers] = useState([]);
     const [travelTimes, setTravelTimes] = useState([]); // State to store travel times
     const mapRef = useRef(null);
