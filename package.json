@@ -45,7 +45,6 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "@biomejs/biome": "1.9.3",
-    "serve": "^14.2.3"
+    "@biomejs/biome": "1.9.3"
   }
 }
