@@ -1,29 +1,20 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
 import { Box, Typography } from "@mui/material";
 
 // Load the necessary libraries for Google Maps
 const libraries = ["places", "marker"];
+const data = JSON.parse(window.sessionStorage.getItem("data"));
 
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [routePath, setRoutePath] = useState([]);
-    // const [selectedLocation, setSelectedLocation] = useState(null);
-    // const [nearbyPlaces, setNearbyPlaces] = useState([]);
-    // const [AdvancedMarkerElement, setAdvancedMarkerElement] = useState(null);
-    const [setSelectedLocation] = useState(null);
-    const [setNearbyPlaces] = useState([]);
-    const [setAdvancedMarkerElement] = useState(null);
-    
     const [markers, setMarkers] = useState([]);
     const [travelTimes, setTravelTimes] = useState([]); // State to store travel times
-    const mapRef = useRef(null);
 
     const handleLoad = () => {
         const loadGoogleMaps = async () => {
             if (window.google && window.google.maps) {
-                const { AdvancedMarkerElement } = await window.google.maps.importLibrary("marker");
-                setAdvancedMarkerElement(() => AdvancedMarkerElement);
                 console.log("Google Maps JavaScript API loaded successfully.");
             } else {
                 console.error("Google Maps JavaScript API is not loaded.");
@@ -34,16 +25,16 @@ const Trip = () => {
         });
     };
     const getData = () => {
-        const data = JSON.parse(window.sessionStorage.getItem("data"));
         if (data) {
             const location = {
-                lat: data.startingLocation.latitude,
-                lng: data.startingLocation.longitude,
+                lat: data.startingLocation.latitude || 0,
+                lng: data.startingLocation.longitude || 0
             };
-            setSelectedLocation(location); // Set the selected location state
             setMapCenter(location); // Center the map on the selected location
             setMarkers([{ position: location, label: "1", name: data.startingLocation.name }]); // Set the initial marker
             fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
+        } else {
+            console.error("Couldn't load data from session storage!");
         }
     };
 
@@ -52,8 +43,8 @@ const Trip = () => {
         const service = new window.google.maps.places.PlacesService(document.createElement("div")); // Create a new PlacesService instance
         const request = {
             location,
-            radius: "5000", // Search within a 5000-meter radius
-            type: ["restaurant"], // This is probably how we will filter out the places we want to visit by trip preferences
+            radius: 5000, // Search within a 5000-meter radius
+            type: "restaurant", // This is probably how we will filter out the places we want to visit by trip preferences
             rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
         };
 
@@ -61,7 +52,6 @@ const Trip = () => {
             if (status === window.google.maps.places.PlacesServiceStatus.OK) {
                 // Sort results by rating and take the top 3
                 const sortedResults = results.sort((a, b) => b.rating - a.rating).slice(0, 3);
-                setNearbyPlaces(sortedResults); // Update state with the top 3 places
 
                 // Set markers for the nearby places
                 const newMarkers = sortedResults.map((place, index) => ({
@@ -91,22 +81,25 @@ const Trip = () => {
             travelMode: window.google.maps.TravelMode.DRIVING // Set the travel mode to driving
         };
 
-        directionsService.route(request, (result, status) => {
-            if (status === window.google.maps.DirectionsStatus.OK) {
-                // Convert the route to an array of lat/lng points
-                const route = result.routes[0].overview_path.map((point) => ({
-                    lat: point.lat(),
-                    lng: point.lng()
-                }));
-                setRoutePath(route); // Update state with the route path
+        directionsService
+            .route(request, (result, status) => {
+                if (status === window.google.maps.DirectionsStatus.OK) {
+                    // Convert the route to an array of lat/lng points
+                    const route = result.routes[0].overview_path.map((point) => ({
+                        lat: point.lat(),
+                        lng: point.lng()
+                    }));
+                    setRoutePath(route); // Update state with the route path
 
-                // Extract travel times from the directions result
-                const times = result.routes[0].legs.map((leg) => leg.duration.text);
-                setTravelTimes(times); // Update state with the travel times
-            }
-        });
+                    // Extract travel times from the directions result
+                    const times = result.routes[0].legs.map((leg) => leg.duration.text);
+                    setTravelTimes(times); // Update state with the travel times
+                }
+            })
+            .catch(() => console.error("Route Request Failed!"));
     };
 
+    // noinspection JSValidateTypes
     return (
         <LoadScript
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
@@ -174,10 +167,7 @@ const Trip = () => {
                         mapContainerStyle={{ height: "400px", width: "100%" }}
                         zoom={14}
                         center={mapCenter}
-                        onLoad={(map) => {
-                            mapRef.current = map;
-                            map.setMapId("651e26fab50abd83");
-                        }}>
+                        options={{ mapId: "651e26fab50abd83" }}>
                         {markers.map((marker, index) => (
                             <Marker key={index} position={marker.position} label={marker.label} />
                         ))}

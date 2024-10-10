@@ -107,10 +107,10 @@ export default function CreateTrip() {
                             variant="outlined"
                             value={transportMode}
                             onChange={(event) => setTransportMode(event.target.value)}>
-                            <MenuItem value="driving">Driving</MenuItem>
-                            <MenuItem value="transit">Transit</MenuItem>
-                            <MenuItem value="bicycling">Bicycling</MenuItem>
-                            <MenuItem value="walking">Walking</MenuItem>
+                            <MenuItem value="DRIVING">Driving</MenuItem>
+                            <MenuItem value="TRANSIT">Transit</MenuItem>
+                            <MenuItem value="BICYCLING">Bicycling</MenuItem>
+                            <MenuItem value="WALKING">Walking</MenuItem>
                         </Select>
                     </FormControl>
                     <Stack direction="row" spacing={2}>
