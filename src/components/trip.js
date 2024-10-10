@@ -11,7 +11,6 @@ const Trip = () => {
     const [routePath, setRoutePath] = useState([]);
     const [markers, setMarkers] = useState([]);
     const [travelTimes, setTravelTimes] = useState([]); // State to store travel times
-    const mapRef = useRef(null);
     const [selectedNode, setSelectedNode] = useState(null);
     const [notes, setNotes] = useState(""); // State to store notes
     const [durations, setDurations] = useState({}); // State to store durations
@@ -125,62 +124,6 @@ const Trip = () => {
                 }
             })
             .catch(() => console.error("Route Request Failed!"));
-    };
-
-    const handleNotesChange = (e) => {
-        const { value } = e.target;
-        setNotes((prevNotes) => ({
-            ...prevNotes,
-            [selectedNode.name]: value
-        }));
-    };
-
-    const handleHoursChange = (e) => {
-        const value = Math.max(0, e.target.value);
-        setDurations((prevDurations) => ({
-            ...prevDurations,
-            [selectedNode.name]: {
-                ...prevDurations[selectedNode.name],
-                hours: value
-            }
-        }));
-    };
-
-    const handleMinutesChange = (e) => {
-        const value = Math.max(0, e.target.value);
-        setDurations((prevDurations) => ({
-            ...prevDurations,
-            [selectedNode.name]: {
-                ...prevDurations[selectedNode.name],
-                minutes: value
-            }
-        }));
-    };
-
-    const calculateTotalTripDuration = () => {
-        let totalMinutes = 0;
-    
-        // Add durations spent at each location, excluding the initial destination
-        Object.entries(durations).forEach(([name, duration], index) => {
-            const locationMinutes = (parseInt(duration.hours) || 0) * 60 + (parseInt(duration.minutes) || 0);
-            totalMinutes += locationMinutes;
-        });
-    
-        // Add travel times between locations
-        travelTimes.forEach(time => {
-            const [value, unit] = time.split(' ');
-            let travelMinutes = 0;
-            if (unit.includes('hour')) {
-                travelMinutes = parseInt(value) * 60;
-            } else if (unit.includes('min')) {
-                travelMinutes = parseInt(value);
-            }
-            totalMinutes += travelMinutes;
-        });
-    
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-        return `${hours} hours and ${minutes} minutes`;
     };
 
     const handleNotesChange = (e) => {
