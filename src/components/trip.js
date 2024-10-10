@@ -139,7 +139,7 @@ const Trip = () => {
     };
 
     const handleHoursChange = (e) => {
-        const { value } = e.target;
+        const value = Math.max(0, e.target.value);
         setDurations((prevDurations) => ({
             ...prevDurations,
             [selectedNode.name]: {
@@ -150,7 +150,7 @@ const Trip = () => {
     };
 
     const handleMinutesChange = (e) => {
-        const { value } = e.target;
+        const value = Math.max(0, e.target.value);
         setDurations((prevDurations) => ({
             ...prevDurations,
             [selectedNode.name]: {
@@ -310,17 +310,19 @@ const Trip = () => {
                                                     type="number"
                                                     variant="outlined"
                                                     margin="normal"
-                                                    value={durations[selectedNode.name]?.hours || 2}
+                                                    value={durations[selectedNode.name]?.hours}
                                                     onChange={handleHoursChange}
                                                     style={{ marginRight: '10px' }}
+                                                    slotProps={{ htmlInput: { min: 0 } }}
                                                 />
                                                 <TextField
                                                     label="Minutes"
                                                     type="number"
                                                     variant="outlined"
                                                     margin="normal"
-                                                    value={durations[selectedNode.name]?.minutes || 0}
+                                                    value={durations[selectedNode.name]?.minutes}
                                                     onChange={handleMinutesChange}
+                                                    slotProps={{ htmlInput: { min: 0 } }}
                                                 />
                                             </Box>
                                         </FormControl>
