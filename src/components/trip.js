@@ -1,16 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
 import { Box, Typography, Card, CardContent, TextField, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 
 // Load the necessary libraries for Google Maps
 const libraries = ["places", "marker"];
+const data = JSON.parse(window.sessionStorage.getItem("data"));
 
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [routePath, setRoutePath] = useState([]);
-    const [selectedLocation, setSelectedLocation] = useState(null);
-    const [nearbyPlaces, setNearbyPlaces] = useState([]);
-    const [AdvancedMarkerElement, setAdvancedMarkerElement] = useState(null);
     const [markers, setMarkers] = useState([]);
     const [travelTimes, setTravelTimes] = useState([]); // State to store travel times
     const mapRef = useRef(null);
@@ -21,8 +19,6 @@ const Trip = () => {
     const handleLoad = () => {
         const loadGoogleMaps = async () => {
             if (window.google && window.google.maps) {
-                const { AdvancedMarkerElement } = await window.google.maps.importLibrary("marker");
-                setAdvancedMarkerElement(() => AdvancedMarkerElement);
                 console.log("Google Maps JavaScript API loaded successfully.");
             } else {
                 console.error("Google Maps JavaScript API is not loaded.");
@@ -34,13 +30,11 @@ const Trip = () => {
     };
 
     const getData = () => {
-        const data = JSON.parse(window.sessionStorage.getItem("data"));
         if (data) {
             const location = {
-                lat: data.startingLocation.latitude,
-                lng: data.startingLocation.longitude,
+                lat: data.startingLocation.latitude || 0,
+                lng: data.startingLocation.longitude || 0
             };
-            setSelectedLocation(location); // Set the selected location state
             setMapCenter(location); // Center the map on the selected location
             setMarkers([{
                 position: location,
@@ -50,6 +44,8 @@ const Trip = () => {
                 rating: data.startingLocation.user_ratings_total || "N/A",
             }]);
             fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
+        } else {
+            console.error("Couldn't load data from session storage!");
         }
     };
 
@@ -65,14 +61,13 @@ const Trip = () => {
             location,
             radius: "5000", // Search within a 5000-meter radius
             type: ["restaurant"], // This is probably how we will filter out the places we want to visit by trip preferences
-            rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence, this is how important Google considers this place to be
+            rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
         };
 
         service.nearbySearch(request, (results, status) => {
             if (status === window.google.maps.places.PlacesServiceStatus.OK) {
                 // Sort results by rating and take the top 3
                 const sortedResults = results.sort((a, b) => b.rating - a.rating).slice(0, 3);
-                setNearbyPlaces(sortedResults); // Update state with the top 3 places
 
                 // Set markers for the nearby places
                 const newMarkers = sortedResults.map((place, index) => ({
@@ -114,20 +109,22 @@ const Trip = () => {
             travelMode: window.google.maps.TravelMode.DRIVING // Set the travel mode to driving
         };
 
-        directionsService.route(request, (result, status) => {
-            if (status === window.google.maps.DirectionsStatus.OK) {
-                // Convert the route to an array of lat/lng points
-                const route = result.routes[0].overview_path.map((point) => ({
-                    lat: point.lat(),
-                    lng: point.lng()
-                }));
-                setRoutePath(route); // Update state with the route path
+        directionsService
+            .route(request, (result, status) => {
+                if (status === window.google.maps.DirectionsStatus.OK) {
+                    // Convert the route to an array of lat/lng points
+                    const route = result.routes[0].overview_path.map((point) => ({
+                        lat: point.lat(),
+                        lng: point.lng()
+                    }));
+                    setRoutePath(route); // Update state with the route path
 
-                // Extract travel times from the directions result
-                const times = result.routes[0].legs.map((leg) => leg.duration.text);
-                setTravelTimes(times); // Update state with the travel times
-            }
-        });
+                    // Extract travel times from the directions result
+                    const times = result.routes[0].legs.map((leg) => leg.duration.text);
+                    setTravelTimes(times); // Update state with the travel times
+                }
+            })
+            .catch(() => console.error("Route Request Failed!"));
     };
 
     const handleNotesChange = (e) => {
@@ -186,6 +183,63 @@ const Trip = () => {
         return `${hours} hours and ${minutes} minutes`;
     };
 
+    const handleNotesChange = (e) => {
+        const { value } = e.target;
+        setNotes((prevNotes) => ({
+            ...prevNotes,
+            [selectedNode.name]: value
+        }));
+    };
+
+    const handleHoursChange = (e) => {
+        const value = Math.max(0, e.target.value);
+        setDurations((prevDurations) => ({
+            ...prevDurations,
+            [selectedNode.name]: {
+                ...prevDurations[selectedNode.name],
+                hours: value
+            }
+        }));
+    };
+
+    const handleMinutesChange = (e) => {
+        const value = Math.max(0, e.target.value);
+        setDurations((prevDurations) => ({
+            ...prevDurations,
+            [selectedNode.name]: {
+                ...prevDurations[selectedNode.name],
+                minutes: value
+            }
+        }));
+    };
+
+    const calculateTotalTripDuration = () => {
+        let totalMinutes = 0;
+    
+        // Add durations spent at each location, excluding the initial destination
+        Object.entries(durations).forEach(([name, duration], index) => {
+            const locationMinutes = (parseInt(duration.hours) || 0) * 60 + (parseInt(duration.minutes) || 0);
+            totalMinutes += locationMinutes;
+        });
+    
+        // Add travel times between locations
+        travelTimes.forEach(time => {
+            const [value, unit] = time.split(' ');
+            let travelMinutes = 0;
+            if (unit.includes('hour')) {
+                travelMinutes = parseInt(value) * 60;
+            } else if (unit.includes('min')) {
+                travelMinutes = parseInt(value);
+            }
+            totalMinutes += travelMinutes;
+        });
+    
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        return `${hours} hours and ${minutes} minutes`;
+    };
+
+    // noinspection JSValidateTypes
     return (
         <LoadScript
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
@@ -263,10 +317,7 @@ const Trip = () => {
                         mapContainerStyle={{ height: "400px", width: "100%" }}
                         zoom={14}
                         center={mapCenter}
-                        onLoad={(map) => {
-                            mapRef.current = map;
-                            map.setMapId("651e26fab50abd83");
-                        }}>
+                        options={{ mapId: "651e26fab50abd83" }}>
                         {markers.map((marker, index) => (
                             <Marker
                                 key={index}
