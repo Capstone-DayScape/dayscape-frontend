@@ -12,7 +12,8 @@ root.render(
 	    domain="dev-dvzptx3ol842v42i.us.auth0.com"
 	    clientId="3Yh7IxkQBevAfahfFXYpXoRZe1g3W2Ve"
 	    authorizationParams={{
-		redirect_uri: "http://localhost:3000/profile",
+		redirect_uri: "http://localhost:3000",
+		audience: "https://backend-dev-263849479020.us-east1.run.app",
 		useRefreshTokens: true,
 
 	    }}
