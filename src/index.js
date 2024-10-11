@@ -5,17 +5,18 @@ import { Auth0Provider } from '@auth0/auth0-react';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+import config from './config';
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <React.StrictMode>
 	<Auth0Provider
-	    domain="dev-dvzptx3ol842v42i.us.auth0.com"
-	    clientId="3Yh7IxkQBevAfahfFXYpXoRZe1g3W2Ve"
+	    domain={config.auth0_domain}
+	    clientId={config.auth0_client_id}
 	    authorizationParams={{
-		redirect_uri: "http://localhost:3000",
-		audience: "https://backend-dev-263849479020.us-east1.run.app",
+		redirect_uri: config.frontend_endpoint,
+		audience: config.auth0_audience,
 		useRefreshTokens: true,
-
 	    }}
 	    cacheLocation="localstorage"
 	>

@@ -1,6 +1,9 @@
+// Example code to call an endpoint on the private part of the API
+import config from './config';
+
 const makeRequest = async (accessToken, callback) => {
   try {
-    const response = await fetch('http://localhost:5556/api/private', {
+    const response = await fetch(config.backend_endpoint + '/api/private', {
       method: 'GET',
       headers: {
           'Authorization': `Bearer ${accessToken}`,
