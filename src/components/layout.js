@@ -17,10 +17,11 @@ const Layout = ({ children }) => {
             <AppBar position="static">
                 <Toolbar>
                     <Typography variant="h6" sx={{ flexGrow: 1 }}>
-                        DayScape
+                        <a href="/">DayScape</a>
                     </Typography>
-                    <Button color="inherit" href="/login">Login</Button>
-                    <Button color="inherit" href="/signup">Sign Up</Button>
+                    <Button color="inherit" href="/login">Log in</Button>
+                    <Button color="inherit" href="/logout">Log Out</Button>
+                    <Button color="inherit" href="/profile">Profile</Button>
                 </Toolbar>
             </AppBar>
             <Container sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
