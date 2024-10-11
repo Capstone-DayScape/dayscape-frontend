@@ -13,7 +13,7 @@ const Profile = () => {
       makeRequest(accessToken, (data) => setData(data));
     };
     fetchData();
-  }, []);
+  }, [getAccessTokenSilently]);
 
     console.log("isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "user:", user);
 
