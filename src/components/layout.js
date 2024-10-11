@@ -1,40 +1,65 @@
-import React from 'react';
-import { AppBar, Toolbar, Typography, Container, Box, Button } from '@mui/material';
-import { Helmet } from 'react-helmet';
+import React from "react";
+import { AppBar, Toolbar, Typography, Container, Box, Button, Link } from "@mui/material";
+import { Helmet } from "react-helmet";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const Layout = ({ children }) => {
+    const { isAuthenticated, loginWithRedirect, logout } = useAuth0();
+
     return (
         <Box
             sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: '100vh',
-            }}
-        >
+                display: "flex",
+                flexDirection: "column",
+                minHeight: "100vh"
+            }}>
             <Helmet>
                 <title>DayScape</title>
             </Helmet>
             <AppBar position="static">
                 <Toolbar>
                     <Typography variant="h6" sx={{ flexGrow: 1 }}>
-                        <a href="/">DayScape</a>
+                        <Link href="/" color="white" underline="none">
+                            DayScape
+                        </Link>
                     </Typography>
-                    <Button color="inherit" href="/login">Log in</Button>
-                    <Button color="inherit" href="/logout">Log Out</Button>
-                    <Button color="inherit" href="/profile">Profile</Button>
+                    {!isAuthenticated && (
+                        <Button
+                            color="inherit"
+                            onClick={() => {
+                                loginWithRedirect().catch(() => console.error("Unable to redirect to login!"));
+                            }}>
+                            Log in
+                        </Button>
+                    )}
+                    {isAuthenticated && (
+                        <>
+                            <Button
+                                color="inherit"
+                                onClick={() => {
+                                    logout({ logoutParams: { returnTo: window.location.origin } }).catch(() => {
+                                        console.error("Unable to logout!");
+                                    });
+                                }}>
+                                Log Out
+                            </Button>
+                            <Button color="inherit" href="/profile">
+                                Profile
+                            </Button>
+                        </>
+                    )}
                 </Toolbar>
             </AppBar>
-            <Container sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <Container sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 <Box mt={2}>{children}</Box>
             </Container>
             <footer>
                 <Box
                     sx={{
-                        bgcolor: 'background.paper',
+                        bgcolor: "background.paper",
                         p: 2,
-                        textAlign: 'center',
-                    }}
-                >
+                        textAlign: "center"
+                    }}>
                     <Typography variant="body1">2024 DayScape</Typography>
                 </Box>
             </footer>
