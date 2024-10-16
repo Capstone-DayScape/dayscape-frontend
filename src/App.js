@@ -8,22 +8,29 @@ import CreateTrip from "./components/create-trip";
 import LoginButton from "./components/login";
 import LogoutButton from "./components/logout";
 import Profile from "./components/profile";
+import { useAuth0 } from "@auth0/auth0-react";
 
 function App() {
+const { isAuthenticated } = useAuth0();
     return (
-        <Router>
-            <Layout>
-                <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/trip" element={<Trip />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/create-trip" element={<CreateTrip />} />
-                    <Route path="/login" element={<LoginButton />} />
-                    <Route path="/logout" element={<LogoutButton />} />
-                    <Route path="/profile" element={<Profile />} />
-                </Routes>
-            </Layout>
-        </Router>
+	<Router>
+	    <Layout>
+		<Routes>
+		    <Route path="/" element={<Home />} />
+		    <Route path="/trip" element={<Trip />} />
+		    <Route path="/about" element={<About />} />
+		    <Route path="/create-trip" element={<CreateTrip />} />
+		    {isAuthenticated ? (
+			<>
+			    <Route path="/logout" element={<LogoutButton />} />
+			    <Route path="/profile" element={<Profile />} />
+			</>
+		    ) : (
+			<Route path="/login" element={<LoginButton />} />
+		    )}
+		</Routes>
+	    </Layout>
+	</Router>
     );
 }
 
