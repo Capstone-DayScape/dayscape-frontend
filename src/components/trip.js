@@ -291,9 +291,6 @@ const Trip = () => {
                                 </Typography>
                                 {selectedNode.label !== "1" && (
                                     <>
-                                        <Typography variant="body1" gutterBottom>
-                                            Prominence: {selectedNode.rating}
-                                        </Typography>
                                         <FormControl fullWidth variant="outlined" margin="normal">
                                             <Typography variant="body1">
                                                 Duration:
