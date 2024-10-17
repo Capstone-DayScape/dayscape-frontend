@@ -214,8 +214,8 @@ const Trip = () => {
     const generateGradientColors = (numColors) => {
         const colors = [];
         for (let i = 0; i < numColors; i++) {
-            const red = Math.floor(255 - (255 * i) / numColors);
-            const green = Math.floor((255 * i) / numColors);
+            const red = Math.floor((255 * i) / numColors);
+            const green = Math.floor(255 - (255 * i) / numColors);
             const blue = 0;
             colors.push(`rgb(${red},${green},${blue})`);
         }
