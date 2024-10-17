@@ -297,35 +297,36 @@ const Trip = () => {
                     </Typography>
                 </Box>
                 <Box flex={1} display="flex" flexDirection="column" alignItems="center" width="75%">
-                    <GoogleMap
-                        id="map"
-                        mapContainerStyle={{ height: "400px", width: "100%" }}
-                        zoom={14}
-                        center={mapCenter}
-                        options={{ mapId: "651e26fab50abd83" }}>
-                        {markers.map((marker, index) => (
-                            <Marker
-                                key={index}
-                                position={marker.position}
-                                label={marker.label}
-                                onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
-                            />
-                        ))}
-                        {routePath.length > 0 && routePath.map((leg, index) => (
-                            <Polyline
-                                key={index}
-                                path={leg.path.map((point) => ({ lat: point.lat(), lng: point.lng() }))}
-                                options={{
-                                    strokeColor: colors[index],
-                                    strokeOpacity: 0.75,
-                                    strokeWeight: 6
-                                }}
-                            />
-                        ))}
-                    </GoogleMap>
-                    {selectedNode && (
-                        <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2 }}>
-                            <CardContent>
+                <GoogleMap
+                    id="map"
+                    mapContainerStyle={{ height: "400px", width: "100%" }}
+                    zoom={14}
+                    center={mapCenter}
+                    options={{ mapId: "651e26fab50abd83" }}>
+                    {markers.map((marker, index) => (
+                        <Marker
+                            key={index}
+                            position={marker.position}
+                            label={marker.label}
+                            onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
+                        />
+                    ))}
+                    {routePath.length > 0 && routePath.map((leg, index) => (
+                        <Polyline
+                            key={index}
+                            path={leg.path.map((point) => ({ lat: point.lat(), lng: point.lng() }))}
+                            options={{
+                                strokeColor: colors[index],
+                                strokeOpacity: 0.75,
+                                strokeWeight: 6
+                            }}
+                        />
+                    ))}
+                </GoogleMap>
+                <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2, overflow:"auto" }}>
+                    <CardContent>
+                        {selectedNode ? (
+                            <>
                                 <Typography variant="h6" gutterBottom>
                                     {selectedNode.name}
                                 </Typography>
@@ -360,20 +361,25 @@ const Trip = () => {
                                                 />
                                             </Box>
                                         </FormControl>
+                                        <TextField
+                                            label="Enter Notes"
+                                            multiline
+                                            rows={4}
+                                            variant="outlined"
+                                            fullWidth
+                                            value={notes[selectedNode.name] || ""}
+                                            onChange={handleNotesChange}
+                                        />  
                                     </>
                                 )}
-                                <TextField
-                                    label="Enter Notes"
-                                    multiline
-                                    rows={4}
-                                    variant="outlined"
-                                    fullWidth
-                                    value={notes[selectedNode.name] || ""}
-                                    onChange={handleNotesChange}
-                                />
-                            </CardContent>
-                        </Card>
-                    )}
+                            </>
+                        ) : (
+                            <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: 'gray' }}>
+                                Select a node to see details.
+                            </Typography>
+                        )}
+                    </CardContent>
+                </Card>
                 </Box>
             </Box>
         </LoadScript>
