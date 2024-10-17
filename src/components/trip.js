@@ -3,7 +3,7 @@ import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api"
 import { Box, Typography, Card, CardContent, TextField, FormControl } from "@mui/material";
 
 // Load the necessary libraries for Google Maps
-const libraries = ["places", "marker"];
+const libraries = ["places", "marker", "geometry"];
 const data = JSON.parse(window.sessionStorage.getItem("data"));
 
 const Trip = () => {
@@ -96,28 +96,57 @@ const Trip = () => {
     // Calculate the route between the selected location and the nearby places
     const calculateRoute = (origin, places) => {
         const directionsService = new window.google.maps.DirectionsService(); // Create a new DirectionsService instance
-        const waypoints = places.map((place) => ({
+    
+        // Calculate distances from the origin to each place
+        const placesWithDistances = places.map((place) => {
+            const distance = window.google.maps.geometry.spherical.computeDistanceBetween(
+                new window.google.maps.LatLng(origin.lat, origin.lng),
+                place.geometry.location
+            );
+            return { ...place, distance };
+        });
+    
+        // Sort places by distance
+        const sortedPlaces = placesWithDistances.sort((a, b) => a.distance - b.distance);
+    
+        // Split sorted places into two halves
+        const midpoint = Math.ceil(sortedPlaces.length / 2);
+        const outwardJourney = sortedPlaces.slice(0, midpoint);
+        const returnJourney = sortedPlaces.slice(midpoint).reverse();
+    
+        // Create waypoints for the outward journey
+        const outwardWaypoints = outwardJourney.map((place) => ({
             location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }, // Convert place geometry to lat/lng
             stopover: true // Indicate that these are stopover points
         }));
-
+    
+        // Create waypoints for the return journey
+        const returnWaypoints = returnJourney.map((place) => ({
+            location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }, // Convert place geometry to lat/lng
+            stopover: true // Indicate that these are stopover points
+        }));
+    
+        // Combine outward and return waypoints
+        const waypoints = [...outwardWaypoints, ...returnWaypoints];
+    
         const request = {
             origin,
-            destination: waypoints[waypoints.length - 1].location, // Set the last waypoint as the destination
+            destination: origin, // Set the destination to be the initial node to complete the U shape
             waypoints,
             travelMode: window.google.maps.TravelMode.DRIVING // Set the travel mode to driving
         };
-
+    
         directionsService
             .route(request, (result, status) => {
                 if (status === window.google.maps.DirectionsStatus.OK) {
-                    // Convert the route to an array of lat/lng points
-                    const route = result.routes[0].overview_path.map((point) => ({
-                        lat: point.lat(),
-                        lng: point.lng()
+                    // Extract legs from the directions result
+                    const legs = result.routes[0].legs.map((leg) => ({
+                        start_location: leg.start_location,
+                        end_location: leg.end_location,
+                        path: leg.steps.flatMap((step) => step.path)
                     }));
-                    setRoutePath(route); // Update state with the route path
-
+                    setRoutePath(legs); // Update state with the route legs
+    
                     // Extract travel times from the directions result
                     const times = result.routes[0].legs.map((leg) => leg.duration.text);
                     setTravelTimes(times); // Update state with the travel times
@@ -181,6 +210,19 @@ const Trip = () => {
         const minutes = totalMinutes % 60;
         return `${hours} hours and ${minutes} minutes`;
     };
+
+    const generateGradientColors = (numColors) => {
+        const colors = [];
+        for (let i = 0; i < numColors; i++) {
+            const red = Math.floor(255 - (255 * i) / numColors);
+            const green = Math.floor((255 * i) / numColors);
+            const blue = 0;
+            colors.push(`rgb(${red},${green},${blue})`);
+        }
+        return colors;
+    };
+
+    const colors = generateGradientColors(routePath.length);
 
     // noinspection JSValidateTypes
     return (
@@ -269,16 +311,17 @@ const Trip = () => {
                                 onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
                             />
                         ))}
-                        {routePath.length > 0 && (
+                        {routePath.length > 0 && routePath.map((leg, index) => (
                             <Polyline
-                                path={routePath} // Set the path of the polyline
+                                key={index}
+                                path={leg.path.map((point) => ({ lat: point.lat(), lng: point.lng() }))}
                                 options={{
-                                    strokeColor: "#DD0066",
+                                    strokeColor: colors[index],
                                     strokeOpacity: 0.75,
                                     strokeWeight: 6
                                 }}
                             />
-                        )}
+                        ))}
                     </GoogleMap>
                     {selectedNode && (
                         <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2 }}>
