@@ -77,7 +77,6 @@ export default function CreateTrip() {
             setInfoMessage("Sending preferences to backend...");
             await postPreferencesToAPI(accessToken, tags, (data) => {
                 data.matched_list = data.matched_list || undefined;
-                tripData.globalTags = data.matched_list;
                 tripData.days[0].dayTags = data.matched_list;
             });
 

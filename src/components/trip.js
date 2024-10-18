@@ -58,63 +58,74 @@ const Trip = () => {
         }
 
         const service = new window.google.maps.places.PlacesService(document.createElement("div")); // Create a new PlacesService instance
-        const request = {
-            location,
-            radius: "5000", // Search within a 5000-meter radius
-            // This is how we filter out the places we want to visit by trip preferences
-            type: tripData.globalTags[0],
-            // type: ["restaurant"],
-            rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
-        };
+        const placesList = [];
 
-        service.nearbySearch(request, (results, status) => {
-            if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                // Sort results by rating and take the top 3
-                const sortedResults = results.sort((a, b) => b.rating - a.rating).slice(0, 3);
+        tripData.days[0].dayTags.forEach((tag, index) => {
+            let nearbySearchRequest = {
+                location,
+                radius: 5000, // Search within a 5000-meter radius
+                // This is how we filter out the places we want to visit by trip preferences
+                type: tag,
+                rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
+            };
 
-                // Set markers for the nearby places
-                const newMarkers = sortedResults.map((place, index) => ({
-                    position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-                    label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
-                    type: place.types,
-                    name: place.name, // Set the name of the place
-                    info: place.vicinity, // Set the info of the place
-                    rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
-                    duration: { hours: 2, minutes: 0 } // Default duration
-                }));
-                setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
+            service.nearbySearch(nearbySearchRequest, async (results, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    // Sort results by rating and take the first place
+                    const topResult = results.sort((a, b) => b.rating - a.rating)[0];
 
-                // Set default durations for the new markers
-                const newDurations = sortedResults.reduce((acc, place) => {
-                    acc[place.name] = { hours: 2, minutes: 0 };
-                    return acc;
-                }, {});
-                setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
+                    placesList.push(topResult);
 
-                calculateRoute(location, sortedResults); // Calculate the route including these places
-            } else {
-                console.error("PlacesServiceStatus not OK:", status);
-            }
+                    // On last tag
+                    if (index === tripData.days[0].dayTags.length - 1) {
+                        placesList.sort((a, b) => b.rating - a.rating);
+
+                        const newMarkers = placesList.map((place, index) => ({
+                            position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+                            label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
+                            type: place.types,
+                            name: place.name, // Set the name of the place
+                            info: place.vicinity, // Set the info of the place
+                            rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
+                            duration: { hours: 2, minutes: 0 } // Default duration
+                        }));
+
+                        setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
+
+                        // Set default durations for the new markers
+                        const newDurations = placesList.reduce((acc, place) => {
+                            acc[place.name] = { hours: 2, minutes: 0 };
+                            return acc;
+                        }, {});
+                        setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
+
+                        await calculateRoute(location, placesList); // Calculate the route including these places
+                        console.log(placesList);
+                    }
+                } else {
+                    console.error("PlacesServiceStatus not OK:", status);
+                }
+            });
         });
     };
 
     // Calculate the route between the selected location and the nearby places
-    const calculateRoute = (origin, places) => {
+    const calculateRoute = async (origin, places) => {
         const directionsService = new window.google.maps.DirectionsService(); // Create a new DirectionsService instance
         const waypoints = places.map((place) => ({
             location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }, // Convert place geometry to lat/lng
             stopover: true // Indicate that these are stopover points
         }));
 
-        const request = {
+        const directionsRequest = {
             origin,
             destination: waypoints[waypoints.length - 1].location, // Set the last waypoint as the destination
             waypoints,
             travelMode: window.google.maps.TravelMode.DRIVING // Set the travel mode to driving
         };
 
-        directionsService
-            .route(request, (result, status) => {
+        try {
+            await directionsService.route(directionsRequest, (result, status) => {
                 if (status === window.google.maps.DirectionsStatus.OK) {
                     // Convert the route to an array of lat/lng points
                     const route = result.routes[0].overview_path.map((point) => ({
@@ -127,8 +138,10 @@ const Trip = () => {
                     const times = result.routes[0].legs.map((leg) => leg.duration.text);
                     setTravelTimes(times); // Update state with the travel times
                 }
-            })
-            .catch(() => console.error("Route Request Failed!"));
+            });
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const handleNotesChange = (e) => {
@@ -165,7 +178,7 @@ const Trip = () => {
         let totalMinutes = 0;
 
         // Add durations spent at each location, excluding the initial destination
-        Object.entries(durations).forEach(([name, duration], index) => {
+        Object.entries(durations).forEach(([_, duration]) => {
             const locationMinutes = (parseInt(duration.hours) || 0) * 60 + (parseInt(duration.minutes) || 0);
             totalMinutes += locationMinutes;
         });
