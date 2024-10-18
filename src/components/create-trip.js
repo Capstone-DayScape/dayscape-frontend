@@ -22,6 +22,12 @@ import { postPreferencesToAPI } from "../api";
 import { useAuth0 } from "@auth0/auth0-react";
 
 const libraries = ["places"];
+const InfoMessageVariant = {
+    SUCCESS: "success",
+    INFO: "info",
+    WARNING: "warning",
+    ERROR: "error"
+};
 
 export default function CreateTrip() {
     // JSON structure to store data
@@ -50,14 +56,14 @@ export default function CreateTrip() {
     const [tags, setTags] = React.useState([]);
     const [transportMode, setTransportMode] = React.useState("");
     const [usePrevStops, setUsePrevStops] = React.useState(false);
-    const [infoMessage, setInfoMessage] = React.useState("");
+    const [infoMessage, setInfoMessage] = React.useState({ message: "", variant: "" });
 
     const { getAccessTokenSilently } = useAuth0();
 
     const autocompleteRef = React.useRef(null);
 
     const saveData = async () => {
-        setInfoMessage("Retrieving form data...");
+        setInfoMessage({ message: "Retrieving form data...", variant: InfoMessageVariant.INFO });
         try {
             const place = autocompleteRef.current.getPlace();
 
@@ -72,23 +78,24 @@ export default function CreateTrip() {
             tripData.days[0].usePreviousStops = usePrevStops;
             tripData.transportationMode = transportMode;
 
-            setInfoMessage("Getting access token...");
+            setInfoMessage({ message: "Getting access token...", variant: InfoMessageVariant.INFO });
             const accessToken = await getAccessTokenSilently();
-            setInfoMessage("Sending preferences to backend...");
+            setInfoMessage({ message: "Sending preferences to backend...", variant: InfoMessageVariant.INFO });
             await postPreferencesToAPI(accessToken, tags, (data) => {
                 data.matched_list = data.matched_list || undefined;
                 tripData.days[0].dayTags = data.matched_list;
             });
 
             // Stores data into session storage
-            setInfoMessage("Saving to session...");
+            setInfoMessage({ message: "Saving to session...", variant: InfoMessageVariant.INFO });
             window.sessionStorage.setItem("data", JSON.stringify(tripData));
-            setInfoMessage("Done.");
+            setInfoMessage({ message: "Done.", variant: InfoMessageVariant.SUCCESS });
 
             // Go to trip page
             window.location.pathname = "/trip";
         } catch (error) {
             console.error(error);
+            setInfoMessage({ message: error.message, variant: InfoMessageVariant.ERROR });
         }
     };
 
@@ -173,12 +180,7 @@ export default function CreateTrip() {
                         }
                         label="Use Previous Stops"
                     />
-                    {infoMessage &&
-                        (infoMessage !== "Done." ? (
-                            <Alert severity="info">{infoMessage}</Alert>
-                        ) : (
-                            <Alert severity="success">{infoMessage}</Alert>
-                        ))}
+                    {infoMessage.message && <Alert severity={infoMessage.variant}>{infoMessage.message}</Alert>}
                     {startingAddress ? (
                         <Button variant="contained" onClick={saveData}>
                             Create Trip
