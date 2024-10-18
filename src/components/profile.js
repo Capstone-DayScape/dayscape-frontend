@@ -1,6 +1,6 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import React, { useState, useEffect } from "react";
-import makeRequest from "../api.js";
+import { getTestMessageFromAPI } from "../api.js";
 
 const Profile = () => {
     const { user, isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
@@ -9,13 +9,13 @@ const Profile = () => {
     useEffect(() => {
         const fetchData = async () => {
             const accessToken = await getAccessTokenSilently();
-            console.log("accessToken: ", accessToken);
-            makeRequest(accessToken, (data) => setData(data));
+            // console.log("accessToken: ", accessToken);
+            await getTestMessageFromAPI(accessToken, (data) => setData(data));
         };
-        fetchData();
+        fetchData().catch((err) => console.error(err));
     }, [getAccessTokenSilently]);
 
-    console.log("isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "user:", user);
+    // console.log("isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "user:", user);
 
     return (
         <>

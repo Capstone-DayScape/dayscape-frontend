@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
-import { Box, Typography, Card, CardContent, TextField, FormControl } from "@mui/material";
+import { Box, Typography, Card, CardContent, TextField, FormControl, Chip, Stack } from "@mui/material";
 
 // Load the necessary libraries for Google Maps
 const libraries = ["places", "marker"];
-const data = JSON.parse(window.sessionStorage.getItem("data"));
+const tripData = JSON.parse(window.sessionStorage.getItem("data"));
 
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
@@ -29,19 +29,21 @@ const Trip = () => {
     };
 
     const getData = () => {
-        if (data) {
+        if (tripData) {
             const location = {
-                lat: data.startingLocation.latitude || 0,
-                lng: data.startingLocation.longitude || 0
+                lat: tripData.startingLocation.latitude || 0,
+                lng: tripData.startingLocation.longitude || 0
             };
             setMapCenter(location); // Center the map on the selected location
-            setMarkers([{
-                position: location,
-                label: "1",
-                name: data.startingLocation.name,
-                info: data.startingLocation.address,
-                rating: data.startingLocation.user_ratings_total || "N/A",
-            }]);
+            setMarkers([
+                {
+                    position: location,
+                    label: "1",
+                    name: tripData.startingLocation.name,
+                    info: tripData.startingLocation.address,
+                    rating: tripData.startingLocation.user_ratings_total || "N/A"
+                }
+            ]);
             fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
         } else {
             console.error("Couldn't load data from session storage!");
@@ -59,7 +61,9 @@ const Trip = () => {
         const request = {
             location,
             radius: "5000", // Search within a 5000-meter radius
-            type: ["restaurant"], // This is probably how we will filter out the places we want to visit by trip preferences
+            // This is how we filter out the places we want to visit by trip preferences
+            type: tripData.globalTags[0],
+            // type: ["restaurant"],
             rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
         };
 
@@ -72,6 +76,7 @@ const Trip = () => {
                 const newMarkers = sortedResults.map((place, index) => ({
                     position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
                     label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
+                    type: place.types,
                     name: place.name, // Set the name of the place
                     info: place.vicinity, // Set the info of the place
                     rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
@@ -158,25 +163,25 @@ const Trip = () => {
 
     const calculateTotalTripDuration = () => {
         let totalMinutes = 0;
-    
+
         // Add durations spent at each location, excluding the initial destination
         Object.entries(durations).forEach(([name, duration], index) => {
             const locationMinutes = (parseInt(duration.hours) || 0) * 60 + (parseInt(duration.minutes) || 0);
             totalMinutes += locationMinutes;
         });
-    
+
         // Add travel times between locations
-        travelTimes.forEach(time => {
-            const [value, unit] = time.split(' ');
+        travelTimes.forEach((time) => {
+            const [value, unit] = time.split(" ");
             let travelMinutes = 0;
-            if (unit.includes('hour')) {
+            if (unit.includes("hour")) {
                 travelMinutes = parseInt(value) * 60;
-            } else if (unit.includes('min')) {
+            } else if (unit.includes("min")) {
                 travelMinutes = parseInt(value);
             }
             totalMinutes += travelMinutes;
         });
-    
+
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
         return `${hours} hours and ${minutes} minutes`;
@@ -188,7 +193,7 @@ const Trip = () => {
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
             libraries={libraries}
             onLoad={handleLoad}>
-            <Box display="flex" height="80vh" alignItems="center" justifyContent="center">
+            <Stack direction="row">
                 <Box
                     width="25%"
                     padding="10px"
@@ -281,20 +286,25 @@ const Trip = () => {
                         )}
                     </GoogleMap>
                     {selectedNode && (
-                        <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2 }}>
+                        <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
                             <CardContent>
                                 <Typography variant="h6" gutterBottom>
                                     {selectedNode.name}
                                 </Typography>
-                                <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: 'gray' }}>
+                                <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                     {selectedNode.info}
                                 </Typography>
+                                {selectedNode.type && (
+                                    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
+                                        {selectedNode.type.map((tag, index) => (
+                                            <Chip variant="outlined" label={tag} key={index} />
+                                        ))}
+                                    </Stack>
+                                )}
                                 {selectedNode.label !== "1" && (
                                     <>
                                         <FormControl fullWidth variant="outlined" margin="normal">
-                                            <Typography variant="body1">
-                                                Duration:
-                                            </Typography>
+                                            <Typography variant="body1">Duration:</Typography>
                                             <Box display="flex">
                                                 <TextField
                                                     label="Hours"
@@ -303,7 +313,7 @@ const Trip = () => {
                                                     margin="normal"
                                                     value={durations[selectedNode.name]?.hours}
                                                     onChange={handleHoursChange}
-                                                    style={{ marginRight: '10px' }}
+                                                    style={{ marginRight: "10px" }}
                                                     slotProps={{ htmlInput: { min: 0 } }}
                                                 />
                                                 <TextField
@@ -332,7 +342,7 @@ const Trip = () => {
                         </Card>
                     )}
                 </Box>
-            </Box>
+            </Stack>
         </LoadScript>
     );
 };

@@ -1,5 +1,6 @@
 import React from "react";
 import {
+    Alert,
     Box,
     Button,
     Checkbox,
@@ -17,12 +18,14 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { LoadScript, Autocomplete } from "@react-google-maps/api";
+import { postPreferencesToAPI } from "../api";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const libraries = ["places"];
 
 export default function CreateTrip() {
     // JSON structure to store data
-    const data = {
+    const tripData = {
         startingDate: "",
         startingLocation: {
             address: "",
@@ -47,26 +50,47 @@ export default function CreateTrip() {
     const [tags, setTags] = React.useState([]);
     const [transportMode, setTransportMode] = React.useState("");
     const [usePrevStops, setUsePrevStops] = React.useState(false);
+    const [infoMessage, setInfoMessage] = React.useState("");
+
+    const { getAccessTokenSilently } = useAuth0();
 
     const autocompleteRef = React.useRef(null);
 
-    const saveData = () => {
-        const place = autocompleteRef.current.getPlace();
+    const saveData = async () => {
+        setInfoMessage("Retrieving form data...");
+        try {
+            const place = autocompleteRef.current.getPlace();
 
-        if (place) {
-            data.startingLocation.name = place.name;
-            data.startingLocation.latitude = place.geometry.location.lat();
-            data.startingLocation.longitude = place.geometry.location.lng();
+            if (place) {
+                tripData.startingLocation.name = place.name;
+                tripData.startingLocation.latitude = place.geometry.location.lat();
+                tripData.startingLocation.longitude = place.geometry.location.lng();
+            }
+
+            tripData.startingLocation.address = startingAddress;
+            tripData.startingDate = dateObject.hour(0).minute(0).second(0).millisecond(0).toISOString();
+            tripData.days[0].usePreviousStops = usePrevStops;
+            tripData.transportationMode = transportMode;
+
+            setInfoMessage("Getting access token...");
+            const accessToken = await getAccessTokenSilently();
+            setInfoMessage("Sending preferences to backend...");
+            await postPreferencesToAPI(accessToken, tags, (data) => {
+                data.matched_list = data.matched_list || undefined;
+                tripData.globalTags = data.matched_list;
+                tripData.days[0].dayTags = data.matched_list;
+            });
+
+            // Stores data into session storage
+            setInfoMessage("Saving to session...");
+            window.sessionStorage.setItem("data", JSON.stringify(tripData));
+            setInfoMessage("Done.");
+
+            // Go to trip page
+            window.location.pathname = "/trip";
+        } catch (error) {
+            console.error(error);
         }
-
-        data.startingLocation.address = startingAddress;
-        data.startingDate = dateObject.hour(0).minute(0).second(0).millisecond(0).toISOString();
-        data.days[0].dayTags = tags;
-        data.days[0].usePreviousStops = usePrevStops;
-        data.transportationMode = transportMode;
-
-        // Stores data into session storage
-        window.sessionStorage.setItem("data", JSON.stringify(data));
     };
 
     return (
@@ -127,6 +151,7 @@ export default function CreateTrip() {
                                 if (tagInput.length > 0 && !tags.includes(tagInput)) {
                                     setTags([...tags, tagInput]);
                                 }
+                                setTagInput(""); // Clears TextField input
                             }}
                             sx={{ width: 1 / 3 }}>
                             Add Tag
@@ -149,8 +174,14 @@ export default function CreateTrip() {
                         }
                         label="Use Previous Stops"
                     />
+                    {infoMessage &&
+                        (infoMessage !== "Done." ? (
+                            <Alert severity="info">{infoMessage}</Alert>
+                        ) : (
+                            <Alert severity="success">{infoMessage}</Alert>
+                        ))}
                     {startingAddress ? (
-                        <Button variant="contained" onClick={saveData} href="/trip">
+                        <Button variant="contained" onClick={saveData}>
                             Create Trip
                         </Button>
                     ) : (
