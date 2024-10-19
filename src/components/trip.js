@@ -69,41 +69,41 @@ const Trip = () => {
                 rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
             };
 
-            service.nearbySearch(nearbySearchRequest, async (results, status) => {
-                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                    // Sort results by rating and take the first place
-                    const topResult = results.sort((a, b) => b.rating - a.rating)[0];
+            service.nearbySearch(nearbySearchRequest, (results, status) => {
+                if (status !== window.google.maps.places.PlacesServiceStatus.OK) {
+                    console.error(`Status ${status} received for tag ${tag}`);
+                    return;
+                }
 
-                    placesList.push(topResult);
+                // Sort results by rating and take the first place
+                const topResult = results.sort((a, b) => b.rating - a.rating)[0];
 
-                    // On last tag
-                    if (index === tripData.days[0].dayTags.length - 1) {
-                        placesList.sort((a, b) => b.rating - a.rating);
+                placesList.push(topResult);
 
-                        const newMarkers = placesList.map((place, index) => ({
-                            position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-                            label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
-                            type: place.types,
-                            name: place.name, // Set the name of the place
-                            info: place.vicinity, // Set the info of the place
-                            rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
-                            duration: { hours: 2, minutes: 0 } // Default duration
-                        }));
+                // On last tag
+                if (index === tripData.days[0].dayTags.length - 1) {
+                    placesList.sort((a, b) => b.rating - a.rating);
 
-                        setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
+                    const newMarkers = placesList.map((place, index) => ({
+                        position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+                        label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
+                        type: place.types,
+                        name: place.name, // Set the name of the place
+                        info: place.vicinity, // Set the info of the place
+                        rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
+                        duration: { hours: 2, minutes: 0 } // Default duration
+                    }));
 
-                        // Set default durations for the new markers
-                        const newDurations = placesList.reduce((acc, place) => {
-                            acc[place.name] = { hours: 2, minutes: 0 };
-                            return acc;
-                        }, {});
-                        setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
+                    setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
 
-                        await calculateRoute(location, placesList); // Calculate the route including these places
-                        console.log(placesList);
-                    }
-                } else {
-                    console.error("PlacesServiceStatus not OK:", status);
+                    // Set default durations for the new markers
+                    const newDurations = placesList.reduce((acc, place) => {
+                        acc[place.name] = { hours: 2, minutes: 0 };
+                        return acc;
+                    }, {});
+                    setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
+
+                    setTimeout(async () => await calculateRoute(location, placesList), 10); // Calculate the route including these places
                 }
             });
         });
