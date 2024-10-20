@@ -59,8 +59,9 @@ const Trip = () => {
 
         const service = new window.google.maps.places.PlacesService(document.createElement("div")); // Create a new PlacesService instance
         const placesList = [];
+        let requestsUnresolved = tripData.days[0].dayTags.length;
 
-        tripData.days[0].dayTags.forEach((tag, index) => {
+        tripData.days[0].dayTags.forEach(async (tag) => {
             let nearbySearchRequest = {
                 location,
                 radius: 5000, // Search within a 5000-meter radius
@@ -69,19 +70,29 @@ const Trip = () => {
                 rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
             };
 
-            service.nearbySearch(nearbySearchRequest, (results, status) => {
-                if (status !== window.google.maps.places.PlacesServiceStatus.OK) {
-                    console.error(`Status ${status} received for tag ${tag}`);
-                    return;
+            // Sends out multiple requests that don't arrive in order (possible race condition)
+            await service.nearbySearch(nearbySearchRequest, async (results, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    // Sort results by rating and take the first place
+                    const top3Results = results.sort((a, b) => b.rating - a.rating).slice(0, 3);
+                    let currentIndex = 0;
+
+                    if (!tripData.days[0].usePreviousStops) {
+                        top3Results.forEach((result, index) => {
+                            placesList.forEach((place) => {
+                                if (place.place_id === result.place_id) {
+                                    currentIndex++;
+                                }
+                            });
+                        });
+                    }
+                    placesList.push(top3Results[currentIndex]);
+                } else {
+                    console.error(`Status ${status} received for tag '${tag}'`);
                 }
 
-                // Sort results by rating and take the first place
-                const topResult = results.sort((a, b) => b.rating - a.rating)[0];
-
-                placesList.push(topResult);
-
-                // On last tag
-                if (index === tripData.days[0].dayTags.length - 1) {
+                // When this is the last request
+                if (requestsUnresolved === 1) {
                     placesList.sort((a, b) => b.rating - a.rating);
 
                     const newMarkers = placesList.map((place, index) => ({
@@ -103,8 +114,9 @@ const Trip = () => {
                     }, {});
                     setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
 
-                    setTimeout(async () => await calculateRoute(location, placesList), 10); // Calculate the route including these places
+                    await calculateRoute(location, placesList); // Calculate the route including these places
                 }
+                requestsUnresolved--;
             });
         });
     };
