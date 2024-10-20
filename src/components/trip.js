@@ -78,7 +78,7 @@ const Trip = () => {
                     let currentIndex = 0;
 
                     if (!tripData.days[0].usePreviousStops) {
-                        top3Results.forEach((result, index) => {
+                        top3Results.forEach((result) => {
                             placesList.forEach((place) => {
                                 if (place.place_id === result.place_id) {
                                     currentIndex++;
