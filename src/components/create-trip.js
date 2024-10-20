@@ -99,6 +99,13 @@ export default function CreateTrip() {
         }
     };
 
+    const handleAddTag = () => {
+        if (tagInput.length > 0 && !tags.includes(tagInput)) {
+            setTags([...tags, tagInput]);
+        }
+        setTagInput(""); // Clears TextField input
+    };
+
     return (
         <Box sx={{ width: 1 / 2, mx: "auto" }}>
             <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -148,18 +155,17 @@ export default function CreateTrip() {
                             label="Tags"
                             name="tags"
                             value={tagInput}
-                            onChange={(e) => setTagInput(e.target.value)}
+                            onChange={(e) => {
+                                setTagInput(e.target.value);
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    handleAddTag();
+                                }
+                            }}
                             sx={{ width: 2 / 3 }}
                         />
-                        <Button
-                            variant="outlined"
-                            onClick={() => {
-                                if (tagInput.length > 0 && !tags.includes(tagInput)) {
-                                    setTags([...tags, tagInput]);
-                                }
-                                setTagInput(""); // Clears TextField input
-                            }}
-                            sx={{ width: 1 / 3 }}>
+                        <Button variant="outlined" onClick={handleAddTag} sx={{ width: 1 / 3 }}>
                             Add Tag
                         </Button>
                     </Stack>
