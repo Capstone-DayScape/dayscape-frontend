@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
-import { Box, Typography, Card, CardContent, TextField, FormControl, Button, MenuItem, Select } from "@mui/material";
+import { Box, Typography, Card, CardContent, TextField, FormControl, Button } from "@mui/material";
 import AddDayDialog from "./add-day-dialog"; // Import the AddDayDialog component
 import dayjs from "dayjs";
 
@@ -219,21 +219,58 @@ const Trip = () => {
             onLoad={handleLoad}>
             <Box display="flex" flexDirection="column" height="80vh" alignItems="center" justifyContent="center">
                 <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
-                    <Select
-                        value={selectedDayIndex}
-                        onChange={(e) => setSelectedDayIndex(e.target.value)}
-                        displayEmpty
-                        inputProps={{ 'aria-label': 'Select Day' }}
-                        sx={{ mr: 2 }}>
+                    <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
-                            <MenuItem key={index} value={index}>
-                                Day {index + 1}
-                            </MenuItem>
+                            <React.Fragment key={index}>
+                                <Box
+                                    onClick={() => setSelectedDayIndex(index)}
+                                    sx={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: "50%",
+                                        backgroundColor: selectedDayIndex === index ? "#4caf50" : "#1976d2",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        color: "white",
+                                        cursor: "pointer",
+                                    }}>
+                                    {index + 1}
+                                </Box>
+                                {index < days.length - 1 && (
+                                    <Box
+                                        sx={{
+                                            width: 35,
+                                            height: 2,
+                                            backgroundColor: "#686879"
+                                        }}
+                                    />
+                                )}
+                            </React.Fragment>
                         ))}
-                    </Select>
-                    <Button variant="contained" color="primary" onClick={handleAddDay}>
-                        Add New Day
-                    </Button>
+                            <Box
+                                sx={{
+                                    width: 35,
+                                    height: 2,
+                                    backgroundColor: "#686879"
+                                }}
+                            />
+                            <Box
+                            onClick={handleAddDay}
+                            sx={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: "50%",
+                                backgroundColor: "#777777",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "white",
+                                cursor: "pointer"
+                            }}>
+                            +
+                        </Box>
+                    </Box>
                 </Box>
                 <Box display="flex" height="100%" width="100%" alignItems="center" justifyContent="center">
                     <Box
