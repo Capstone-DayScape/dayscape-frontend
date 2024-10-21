@@ -1,12 +1,26 @@
 import React, { useState } from "react";
 import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
-import { Box, Typography, Card, CardContent, TextField, FormControl, Chip, Stack } from "@mui/material";
+import {
+    Box,
+    Typography,
+    Card,
+    CardContent,
+    TextField,
+    FormControl,
+    Chip,
+    Stack,
+    IconButton,
+    Tooltip
+} from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import ShareIcon from "@mui/icons-material/Share";
 
 // Load the necessary libraries for Google Maps
 const libraries = ["places", "marker"];
 const tripData = JSON.parse(window.sessionStorage.getItem("data"));
 
-const Trip = () => {
+export default function Trip() {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [routePath, setRoutePath] = useState([]);
     const [markers, setMarkers] = useState([]);
@@ -218,6 +232,7 @@ const Trip = () => {
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
             libraries={libraries}
             onLoad={handleLoad}>
+            <IconButtonRow />
             <Stack direction="row">
                 <Box
                     width="25%"
@@ -313,9 +328,18 @@ const Trip = () => {
                     {selectedNode && (
                         <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
                             <CardContent>
-                                <Typography variant="h6" gutterBottom>
-                                    {selectedNode.name}
-                                </Typography>
+                                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                                    <Typography variant="h6" gutterBottom>
+                                        {selectedNode.name}
+                                    </Typography>
+                                    {selectedNode.type && (
+                                        <Tooltip title="Regenerate Node" placement="left">
+                                            <IconButton>
+                                                <RefreshIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
+                                </Stack>
                                 <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                     {selectedNode.info}
                                 </Typography>
@@ -370,6 +394,29 @@ const Trip = () => {
             </Stack>
         </LoadScript>
     );
-};
+}
 
-export default Trip;
+export function IconButtonRow() {
+    const regenerateTrip = () => {
+        console.log("Trip should regenerate!");
+    };
+    return (
+        <Stack direction="row" justifySelf="right" sx={{ mb: 1 }}>
+            <Tooltip title="Regenerate Trip">
+                <IconButton onClick={regenerateTrip}>
+                    <RefreshIcon />
+                </IconButton>
+            </Tooltip>
+            <Tooltip title="Permissions">
+                <IconButton>
+                    <PeopleAltIcon />
+                </IconButton>
+            </Tooltip>
+            <Tooltip title="Share">
+                <IconButton>
+                    <ShareIcon />
+                </IconButton>
+            </Tooltip>
+        </Stack>
+    );
+}
