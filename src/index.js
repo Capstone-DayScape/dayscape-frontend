@@ -7,7 +7,7 @@ import reportWebVitals from './reportWebVitals';
 
 import config from './config';
 
-console.log(config);
+// console.log(config);
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

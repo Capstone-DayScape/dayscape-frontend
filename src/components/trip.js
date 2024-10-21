@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
-import { Box, Typography, Card, CardContent, TextField, FormControl } from "@mui/material";
+import { Box, Typography, Card, CardContent, TextField, FormControl, Chip, Stack } from "@mui/material";
 
 // Load the necessary libraries for Google Maps
 const libraries = ["places", "marker"];
-const data = JSON.parse(window.sessionStorage.getItem("data"));
+const tripData = JSON.parse(window.sessionStorage.getItem("data"));
 
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
@@ -29,19 +29,21 @@ const Trip = () => {
     };
 
     const getData = () => {
-        if (data) {
+        if (tripData) {
             const location = {
-                lat: data.startingLocation.latitude || 0,
-                lng: data.startingLocation.longitude || 0
+                lat: tripData.startingLocation.latitude || 0,
+                lng: tripData.startingLocation.longitude || 0
             };
             setMapCenter(location); // Center the map on the selected location
-            setMarkers([{
-                position: location,
-                label: "1",
-                name: data.startingLocation.name,
-                info: data.startingLocation.address,
-                rating: data.startingLocation.user_ratings_total || "N/A",
-            }]);
+            setMarkers([
+                {
+                    position: location,
+                    label: "1",
+                    name: tripData.startingLocation.name,
+                    info: tripData.startingLocation.address,
+                    rating: tripData.startingLocation.user_ratings_total || "N/A"
+                }
+            ]);
             fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
         } else {
             console.error("Couldn't load data from session storage!");
@@ -56,60 +58,86 @@ const Trip = () => {
         }
 
         const service = new window.google.maps.places.PlacesService(document.createElement("div")); // Create a new PlacesService instance
-        const request = {
-            location,
-            radius: "5000", // Search within a 5000-meter radius
-            type: ["restaurant"], // This is probably how we will filter out the places we want to visit by trip preferences
-            rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
-        };
+        const placesList = [];
+        let requestsUnresolved = tripData.days[0].dayTags.length;
 
-        service.nearbySearch(request, (results, status) => {
-            if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                // Sort results by rating and take the top 3
-                const sortedResults = results.sort((a, b) => b.rating - a.rating).slice(0, 3);
+        tripData.days[0].dayTags.forEach(async (tag) => {
+            let nearbySearchRequest = {
+                location,
+                radius: 5000, // Search within a 5000-meter radius
+                // This is how we filter out the places we want to visit by trip preferences
+                type: tag,
+                rankBy: window.google.maps.places.RankBy.PROMINENCE // Rank results by prominence
+            };
 
-                // Set markers for the nearby places
-                const newMarkers = sortedResults.map((place, index) => ({
-                    position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-                    label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
-                    name: place.name, // Set the name of the place
-                    info: place.vicinity, // Set the info of the place
-                    rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
-                    duration: { hours: 2, minutes: 0 } // Default duration
-                }));
-                setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
+            // Sends out multiple requests that don't arrive in order (possible race condition)
+            await service.nearbySearch(nearbySearchRequest, async (results, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    // Sort results by rating and take the first place
+                    const top3Results = results.sort((a, b) => b.rating - a.rating).slice(0, 3);
+                    let currentIndex = 0;
 
-                // Set default durations for the new markers
-                const newDurations = sortedResults.reduce((acc, place) => {
-                    acc[place.name] = { hours: 2, minutes: 0 };
-                    return acc;
-                }, {});
-                setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
+                    if (!tripData.days[0].usePreviousStops) {
+                        top3Results.forEach((result) => {
+                            placesList.forEach((place) => {
+                                if (place.place_id === result.place_id) {
+                                    currentIndex++;
+                                }
+                            });
+                        });
+                    }
+                    placesList.push(top3Results[currentIndex]);
+                } else {
+                    console.error(`Status ${status} received for tag '${tag}'`);
+                }
 
-                calculateRoute(location, sortedResults); // Calculate the route including these places
-            } else {
-                console.error("PlacesServiceStatus not OK:", status);
-            }
+                // When this is the last request
+                if (requestsUnresolved === 1) {
+                    placesList.sort((a, b) => b.rating - a.rating);
+
+                    const newMarkers = placesList.map((place, index) => ({
+                        position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+                        label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
+                        type: place.types,
+                        name: place.name, // Set the name of the place
+                        info: place.vicinity, // Set the info of the place
+                        rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
+                        duration: { hours: 2, minutes: 0 } // Default duration
+                    }));
+
+                    setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
+
+                    // Set default durations for the new markers
+                    const newDurations = placesList.reduce((acc, place) => {
+                        acc[place.name] = { hours: 2, minutes: 0 };
+                        return acc;
+                    }, {});
+                    setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
+
+                    await calculateRoute(location, placesList); // Calculate the route including these places
+                }
+                requestsUnresolved--;
+            });
         });
     };
 
     // Calculate the route between the selected location and the nearby places
-    const calculateRoute = (origin, places) => {
+    const calculateRoute = async (origin, places) => {
         const directionsService = new window.google.maps.DirectionsService(); // Create a new DirectionsService instance
         const waypoints = places.map((place) => ({
             location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }, // Convert place geometry to lat/lng
             stopover: true // Indicate that these are stopover points
         }));
 
-        const request = {
+        const directionsRequest = {
             origin,
             destination: waypoints[waypoints.length - 1].location, // Set the last waypoint as the destination
             waypoints,
             travelMode: window.google.maps.TravelMode.DRIVING // Set the travel mode to driving
         };
 
-        directionsService
-            .route(request, (result, status) => {
+        try {
+            await directionsService.route(directionsRequest, (result, status) => {
                 if (status === window.google.maps.DirectionsStatus.OK) {
                     // Convert the route to an array of lat/lng points
                     const route = result.routes[0].overview_path.map((point) => ({
@@ -122,8 +150,10 @@ const Trip = () => {
                     const times = result.routes[0].legs.map((leg) => leg.duration.text);
                     setTravelTimes(times); // Update state with the travel times
                 }
-            })
-            .catch(() => console.error("Route Request Failed!"));
+            });
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const handleNotesChange = (e) => {
@@ -158,25 +188,25 @@ const Trip = () => {
 
     const calculateTotalTripDuration = () => {
         let totalMinutes = 0;
-    
+
         // Add durations spent at each location, excluding the initial destination
-        Object.entries(durations).forEach(([name, duration], index) => {
+        Object.entries(durations).forEach(([_, duration]) => {
             const locationMinutes = (parseInt(duration.hours) || 0) * 60 + (parseInt(duration.minutes) || 0);
             totalMinutes += locationMinutes;
         });
-    
+
         // Add travel times between locations
-        travelTimes.forEach(time => {
-            const [value, unit] = time.split(' ');
+        travelTimes.forEach((time) => {
+            const [value, unit] = time.split(" ");
             let travelMinutes = 0;
-            if (unit.includes('hour')) {
+            if (unit.includes("hour")) {
                 travelMinutes = parseInt(value) * 60;
-            } else if (unit.includes('min')) {
+            } else if (unit.includes("min")) {
                 travelMinutes = parseInt(value);
             }
             totalMinutes += travelMinutes;
         });
-    
+
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
         return `${hours} hours and ${minutes} minutes`;
@@ -188,7 +218,7 @@ const Trip = () => {
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
             libraries={libraries}
             onLoad={handleLoad}>
-            <Box display="flex" height="80vh" alignItems="center" justifyContent="center">
+            <Stack direction="row">
                 <Box
                     width="25%"
                     padding="10px"
@@ -281,20 +311,25 @@ const Trip = () => {
                         )}
                     </GoogleMap>
                     {selectedNode && (
-                        <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2 }}>
+                        <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
                             <CardContent>
                                 <Typography variant="h6" gutterBottom>
                                     {selectedNode.name}
                                 </Typography>
-                                <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: 'gray' }}>
+                                <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                     {selectedNode.info}
                                 </Typography>
+                                {selectedNode.type && (
+                                    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
+                                        {selectedNode.type.map((tag, index) => (
+                                            <Chip variant="outlined" label={tag} key={index} />
+                                        ))}
+                                    </Stack>
+                                )}
                                 {selectedNode.label !== "1" && (
                                     <>
                                         <FormControl fullWidth variant="outlined" margin="normal">
-                                            <Typography variant="body1">
-                                                Duration:
-                                            </Typography>
+                                            <Typography variant="body1">Duration:</Typography>
                                             <Box display="flex">
                                                 <TextField
                                                     label="Hours"
@@ -303,7 +338,7 @@ const Trip = () => {
                                                     margin="normal"
                                                     value={durations[selectedNode.name]?.hours}
                                                     onChange={handleHoursChange}
-                                                    style={{ marginRight: '10px' }}
+                                                    style={{ marginRight: "10px" }}
                                                     slotProps={{ htmlInput: { min: 0 } }}
                                                 />
                                                 <TextField
@@ -332,7 +367,7 @@ const Trip = () => {
                         </Card>
                     )}
                 </Box>
-            </Box>
+            </Stack>
         </LoadScript>
     );
 };
