@@ -1,5 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogActions, DialogContent, DialogTitle, Button, TextField, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Stack, Chip } from "@mui/material";
+import {
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Button,
+    TextField,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
+    Checkbox,
+    FormControlLabel,
+    Stack,
+    Chip
+} from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
@@ -27,7 +42,7 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>Add New Day</DialogTitle>
             <DialogContent>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -53,30 +68,31 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
                         label="Mode of Transportation"
                         value={transportMode}
                         onChange={(event) => setTransportMode(event.target.value)}>
-                        <MenuItem value="driving">Driving</MenuItem>
-                        <MenuItem value="transit">Transit</MenuItem>
-                        <MenuItem value="bicycling">Bicycling</MenuItem>
-                        <MenuItem value="walking">Walking</MenuItem>
+                        <MenuItem value="DRIVING">Driving</MenuItem>
+                        <MenuItem value="TRANSIT">Transit</MenuItem>
+                        <MenuItem value="BICYCLING">Bicycling</MenuItem>
+                        <MenuItem value="WALKING">Walking</MenuItem>
                     </Select>
                 </FormControl>
-                <TextField
-                    label="Tags"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    fullWidth
-                    margin="normal"
-                />
-                <Button
-                    variant="outlined"
-                    onClick={() => {
-                        if (tagInput.length > 0 && !tags.includes(tagInput)) {
-                            setTags([...tags, tagInput]);
-                        }
-                    }}
-                    fullWidth
-                    margin="normal">
-                    Add Tag
-                </Button>
+                <Stack direction="row" spacing={2} alignItems="center" margin="normal">
+                    <TextField
+                        label="Tags"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        sx={{ flex: 1 }} // Set the width to take up available space
+                    />
+                    <Button
+                        variant="outlined"
+                        onClick={() => {
+                            if (tagInput.length > 0 && !tags.includes(tagInput)) {
+                                setTags([...tags, tagInput]);
+                                setTagInput(''); // Clear the input after adding the tag
+                            }
+                        }}
+                        sx={{ height: '56px', flexShrink: 0 }}>
+                        Add Tag
+                    </Button>
+                </Stack>
                 {tags.length > 0 && (
                     <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }} useFlexGap margin="normal">
                         {tags.map((tag, index) => (
@@ -98,7 +114,7 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancel</Button>
-                <Button onClick={handleSave}>Save</Button>
+                <Button onClick={handleSave}>Add Day</Button>
             </DialogActions>
         </Dialog>
     );
