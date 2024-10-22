@@ -1,16 +1,16 @@
 import React, { useState } from "react";
-import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
+import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 import {
     Box,
-    Typography,
     Card,
     CardContent,
-    TextField,
-    FormControl,
     Chip,
-    Stack,
+    FormControl,
     IconButton,
-    Tooltip
+    Stack,
+    TextField,
+    Tooltip,
+    Typography
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
@@ -19,15 +19,20 @@ import ShareIcon from "@mui/icons-material/Share";
 // Load the necessary libraries for Google Maps
 const libraries = ["places", "marker"];
 const tripData = JSON.parse(window.sessionStorage.getItem("data"));
+const resultsPerTag = 5;
 
 export default function Trip() {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
-    const [routePath, setRoutePath] = useState([]);
     const [markers, setMarkers] = useState([]);
     const [travelTimes, setTravelTimes] = useState([]); // State to store travel times
     const [selectedNode, setSelectedNode] = useState(null);
     const [notes, setNotes] = useState(""); // State to store notes
     const [durations, setDurations] = useState({}); // State to store durations
+    const [placesResponse, setPlacesResponse] = useState([]); // State to store nearby places response
+    const [iteration, setIteration] = useState(1); // State to track the current trip iteration
+
+    const mapRef = React.useRef(null);
+    const polyLineRef = React.useRef(null);
 
     const handleLoad = () => {
         const loadGoogleMaps = async () => {
@@ -42,7 +47,11 @@ export default function Trip() {
         });
     };
 
-    const getData = () => {
+    /**
+     * Gets trip data from session storage and updates the map and markers accordingly.
+     * @returns {Promise<void>} Promise to get trip data and update the map
+     */
+    const getData = async () => {
         if (tripData) {
             const location = {
                 lat: tripData.startingLocation.latitude || 0,
@@ -58,13 +67,61 @@ export default function Trip() {
                     rating: tripData.startingLocation.user_ratings_total || "N/A"
                 }
             ]);
-            fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
+            await generateDay(location);
         } else {
             console.error("Couldn't load data from session storage!");
         }
     };
 
-    // Fetch nearby places using the Google Places API
+    async function generateDay(location) {
+        // Reset previous data
+        setTravelTimes([]);
+        setDurations({});
+
+        if (placesResponse.length === 0) {
+            fetchNearbyPlaces(location); // Fetch nearby places based on the selected location
+        } else {
+            const placesList = placesResponse?.map((response) => response.results[iteration]);
+            await createMarkers(placesList, location);
+            // Every day regeneration increases the iteration number
+            setIteration((prev) => (prev + 1) % resultsPerTag);
+        }
+    }
+    /**
+     * Creates markers for nearby places and calculates the route.
+     * @param {PlaceResult[]} placesList List of nearby places
+     * @param {{lat:number,lng:number}} location Starting Location
+     * @returns {Promise<void>} Promise to create markers and calculate route
+     */
+    async function createMarkers(placesList, location) {
+        placesList.sort((a, b) => b.rating - a.rating);
+
+        const newMarkers = placesList.map((place, index) => ({
+            position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+            label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
+            type: place.types,
+            name: place.name, // Set the name of the place
+            info: place.vicinity, // Set the info of the place
+            rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
+            duration: { hours: 2, minutes: 0 } // Default duration
+        }));
+
+        setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
+
+        // Set default durations for the new markers
+        const newDurations = placesList.reduce((acc, place) => {
+            acc[place.name] = { hours: 2, minutes: 0 };
+            return acc;
+        }, {});
+        setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
+
+        await calculateRoute(location, placesList); // Calculate the route including these places
+    }
+
+    /**
+     * Fetch nearby places using the Google Places API.
+     * @param {{lat:number,lng:number}} location Starting Location
+     */
     const fetchNearbyPlaces = (location) => {
         if (!window.google || !window.google.maps || !window.google.maps.places) {
             console.error("Google Maps Places API is not loaded.");
@@ -88,11 +145,11 @@ export default function Trip() {
             await service.nearbySearch(nearbySearchRequest, async (results, status) => {
                 if (status === window.google.maps.places.PlacesServiceStatus.OK) {
                     // Sort results by rating and take the first place
-                    const top3Results = results.sort((a, b) => b.rating - a.rating).slice(0, 3);
+                    const topResults = results.sort((a, b) => b.rating - a.rating).slice(0, resultsPerTag);
                     let currentIndex = 0;
 
                     if (!tripData.days[0].usePreviousStops) {
-                        top3Results.forEach((result) => {
+                        topResults.forEach((result) => {
                             placesList.forEach((place) => {
                                 if (place.place_id === result.place_id) {
                                     currentIndex++;
@@ -100,42 +157,28 @@ export default function Trip() {
                             });
                         });
                     }
-                    placesList.push(top3Results[currentIndex]);
+                    // Saves the results in the response array
+                    setPlacesResponse((prevPlaces) => [...prevPlaces, { tag: tag, results: topResults }]);
+                    placesList.push(topResults[currentIndex]);
                 } else {
                     console.error(`Status ${status} received for tag '${tag}'`);
                 }
 
                 // When this is the last request
                 if (requestsUnresolved === 1) {
-                    placesList.sort((a, b) => b.rating - a.rating);
-
-                    const newMarkers = placesList.map((place, index) => ({
-                        position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-                        label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
-                        type: place.types,
-                        name: place.name, // Set the name of the place
-                        info: place.vicinity, // Set the info of the place
-                        rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
-                        duration: { hours: 2, minutes: 0 } // Default duration
-                    }));
-
-                    setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
-
-                    // Set default durations for the new markers
-                    const newDurations = placesList.reduce((acc, place) => {
-                        acc[place.name] = { hours: 2, minutes: 0 };
-                        return acc;
-                    }, {});
-                    setDurations((prevDurations) => ({ ...prevDurations, ...newDurations }));
-
-                    await calculateRoute(location, placesList); // Calculate the route including these places
+                    await createMarkers(placesList, location);
                 }
                 requestsUnresolved--;
             });
         });
     };
 
-    // Calculate the route between the selected location and the nearby places
+    /**
+     * Calculate the route between the selected location and the nearby places
+     * @param {{lat:number,lng:number}} origin starting Location
+     * @param {PlaceResult[]} places List of nearby places
+     * @returns {Promise<void>} Promise to calculate the route
+     */
     const calculateRoute = async (origin, places) => {
         const directionsService = new window.google.maps.DirectionsService(); // Create a new DirectionsService instance
         const waypoints = places.map((place) => ({
@@ -158,7 +201,19 @@ export default function Trip() {
                         lat: point.lat(),
                         lng: point.lng()
                     }));
-                    setRoutePath(route); // Update state with the route path
+
+                    if (polyLineRef.current) {
+                        polyLineRef.current.setMap(null); // Remove the previous polyline if it exists
+                        polyLineRef.current = null;
+                    }
+
+                    polyLineRef.current = new window.google.maps.Polyline({
+                        path: route,
+                        strokeColor: "#DD0066",
+                        strokeOpacity: 0.75,
+                        strokeWeight: 6
+                    });
+                    polyLineRef.current.setMap(mapRef.current);
 
                     // Extract travel times from the directions result
                     const times = result.routes[0].legs.map((leg) => leg.duration.text);
@@ -200,6 +255,9 @@ export default function Trip() {
         }));
     };
 
+    /**
+     * Calculates the total trip duration, including travel times.
+     * @returns {string} Total trip duration in the format "HH hours and MM minutes"     */
     const calculateTotalTripDuration = () => {
         let totalMinutes = 0;
 
@@ -232,7 +290,13 @@ export default function Trip() {
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
             libraries={libraries}
             onLoad={handleLoad}>
-            <IconButtonRow />
+            <IconButtonRow>
+                <Tooltip title="Regenerate Trip">
+                    <IconButton onClick={getData}>
+                        <RefreshIcon />
+                    </IconButton>
+                </Tooltip>
+            </IconButtonRow>
             <Stack direction="row">
                 <Box
                     width="25%"
@@ -302,6 +366,9 @@ export default function Trip() {
                 <Box flex={1} display="flex" flexDirection="column" alignItems="center" width="75%">
                     <GoogleMap
                         id="map"
+                        onLoad={(map) => {
+                            mapRef.current = map;
+                        }}
                         mapContainerStyle={{ height: "400px", width: "100%" }}
                         zoom={14}
                         center={mapCenter}
@@ -314,16 +381,6 @@ export default function Trip() {
                                 onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
                             />
                         ))}
-                        {routePath.length > 0 && (
-                            <Polyline
-                                path={routePath} // Set the path of the polyline
-                                options={{
-                                    strokeColor: "#DD0066",
-                                    strokeOpacity: 0.75,
-                                    strokeWeight: 6
-                                }}
-                            />
-                        )}
                     </GoogleMap>
                     {selectedNode && (
                         <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
@@ -351,32 +408,30 @@ export default function Trip() {
                                     </Stack>
                                 )}
                                 {selectedNode.label !== "1" && (
-                                    <>
-                                        <FormControl fullWidth variant="outlined" margin="normal">
-                                            <Typography variant="body1">Duration:</Typography>
-                                            <Box display="flex">
-                                                <TextField
-                                                    label="Hours"
-                                                    type="number"
-                                                    variant="outlined"
-                                                    margin="normal"
-                                                    value={durations[selectedNode.name]?.hours}
-                                                    onChange={handleHoursChange}
-                                                    style={{ marginRight: "10px" }}
-                                                    slotProps={{ htmlInput: { min: 0 } }}
-                                                />
-                                                <TextField
-                                                    label="Minutes"
-                                                    type="number"
-                                                    variant="outlined"
-                                                    margin="normal"
-                                                    value={durations[selectedNode.name]?.minutes}
-                                                    onChange={handleMinutesChange}
-                                                    slotProps={{ htmlInput: { min: 0 } }}
-                                                />
-                                            </Box>
-                                        </FormControl>
-                                    </>
+                                    <FormControl fullWidth variant="outlined" margin="normal">
+                                        <Typography variant="body1">Duration:</Typography>
+                                        <Box display="flex">
+                                            <TextField
+                                                label="Hours"
+                                                type="number"
+                                                variant="outlined"
+                                                margin="normal"
+                                                value={durations[selectedNode.name]?.hours}
+                                                onChange={handleHoursChange}
+                                                style={{ marginRight: "10px" }}
+                                                slotProps={{ htmlInput: { min: 0 } }}
+                                            />
+                                            <TextField
+                                                label="Minutes"
+                                                type="number"
+                                                variant="outlined"
+                                                margin="normal"
+                                                value={durations[selectedNode.name]?.minutes}
+                                                onChange={handleMinutesChange}
+                                                slotProps={{ htmlInput: { min: 0 } }}
+                                            />
+                                        </Box>
+                                    </FormControl>
                                 )}
                                 <TextField
                                     label="Enter Notes"
@@ -396,17 +451,17 @@ export default function Trip() {
     );
 }
 
-export function IconButtonRow() {
-    const regenerateTrip = () => {
-        console.log("Trip should regenerate!");
-    };
+/**
+ * Includes the permissions and sharing buttons. If this surrounds _ReactElements_, they will be displayed before
+ * the permission and share buttons.
+ * @param children Any _ReactElement_
+ * @returns {Element} _ReactElement_
+ * @constructor
+ */
+export function IconButtonRow({ children }) {
     return (
         <Stack direction="row" justifySelf="right" sx={{ mb: 1 }}>
-            <Tooltip title="Regenerate Trip">
-                <IconButton onClick={regenerateTrip}>
-                    <RefreshIcon />
-                </IconButton>
-            </Tooltip>
+            {children}
             <Tooltip title="Permissions">
                 <IconButton>
                     <PeopleAltIcon />

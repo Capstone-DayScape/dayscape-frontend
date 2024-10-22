@@ -33,6 +33,6 @@ export async function postPreferencesToAPI(accessToken, preferencesList, callbac
         const data = await response.json();
         callback(data);
     } catch (error) {
-        console.error(error);
+        throw Error("Backend is not responding: " + error.message);
     }
 }
