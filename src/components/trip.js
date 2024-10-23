@@ -77,6 +77,13 @@ const Trip = () => {
                 setDays((prevDays) => {
                     const updatedDays = [...prevDays];
                     updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
+                    updatedDays[dayIndex].durations = {
+                        ...updatedDays[dayIndex].durations,
+                        ...newMarkers.reduce((acc, marker) => {
+                            acc[marker.name] = { hours: 2, minutes: 0 };
+                            return acc;
+                        }, {})
+                    };
                     return updatedDays;
                 });
 
@@ -144,6 +151,9 @@ const Trip = () => {
         const value = Math.max(0, e.target.value);
         setDays((prevDays) => {
             const updatedDays = [...prevDays];
+            if (!updatedDays[selectedDayIndex].durations[selectedNode.name]) {
+                updatedDays[selectedDayIndex].durations[selectedNode.name] = { hours: 0, minutes: 0 };
+            }
             updatedDays[selectedDayIndex].durations[selectedNode.name].hours = value;
             return updatedDays;
         });
@@ -153,6 +163,9 @@ const Trip = () => {
         const value = Math.max(0, e.target.value);
         setDays((prevDays) => {
             const updatedDays = [...prevDays];
+            if (!updatedDays[selectedDayIndex].durations[selectedNode.name]) {
+                updatedDays[selectedDayIndex].durations[selectedNode.name] = { hours: 0, minutes: 0 };
+            }
             updatedDays[selectedDayIndex].durations[selectedNode.name].minutes = value;
             return updatedDays;
         });
