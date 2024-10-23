@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
+import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 import { Box, Typography, Card, CardContent, TextField, FormControl } from "@mui/material";
 import AddDayDialog from "./add-day-dialog"; // Import the AddDayDialog component
 import dayjs from "dayjs";
@@ -14,6 +14,7 @@ const Trip = () => {
     const [selectedNode, setSelectedNode] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const polylineRef = useRef(null);
+    const mapRef = useRef(null);
 
     const handleLoad = () => {
         const loadGoogleMaps = async () => {
@@ -218,12 +219,39 @@ const Trip = () => {
         setIsDialogOpen(false);
     };
 
+    const daysRef = useRef(days);
+
     useEffect(() => {
-        // Remove the existing polyline from the map when switching days
-        if (polylineRef.current) {
-            polylineRef.current.setMap(null);
-        }
-    }, [selectedDayIndex]);
+        daysRef.current = days;
+    }, [days]);
+    
+    useEffect(() => {
+        // Function to render the polyline
+        const renderPolyline = () => {
+            // Remove the existing polyline from the map
+            if (polylineRef.current) {
+                polylineRef.current.setMap(null);
+            }
+    
+            // Add the polyline for the selected day
+            if (daysRef.current[selectedDayIndex].routePath.length > 0 && mapRef.current) {
+                polylineRef.current = new window.google.maps.Polyline({
+                    path: daysRef.current[selectedDayIndex].routePath,
+                    strokeColor: "#DD0066",
+                    strokeOpacity: 0.75,
+                    strokeWeight: 6
+                });
+                polylineRef.current.setMap(mapRef.current);
+            }
+        };
+    
+        renderPolyline();
+    }, [selectedDayIndex, days]); // Run when selectedDayIndex or days changes
+    
+    useEffect(() => {
+        // Unselect any selected node when switching days
+        setSelectedNode(null);
+    }, [selectedDayIndex]); // Run only when selectedDayIndex changes
 
     return (
         <LoadScript
@@ -302,7 +330,9 @@ const Trip = () => {
                                     flexDirection="column"
                                     alignItems="center"
                                     mb={2}
-                                    onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
+                                    onClick={() => {
+                                        setSelectedNode(selectedNode?.name === marker.name ? null : marker);
+                                    }}
                                     sx={{ cursor: "pointer" }}>
                                     <Box
                                         display="flex"
@@ -356,6 +386,9 @@ const Trip = () => {
                     <Box flex={1} display="flex" flexDirection="column" alignItems="center" width="75%">
                         <GoogleMap
                             id="map"
+                            onLoad={(map) => {
+                                mapRef.current = map;
+                            }}
                             mapContainerStyle={{ height: "400px", width: "100%" }}
                             zoom={14}
                             center={mapCenter}
@@ -370,19 +403,6 @@ const Trip = () => {
                                     />
                                 )
                             ))}
-                            {days[selectedDayIndex].routePath.length > 0 && (
-                                <Polyline
-                                    path={days[selectedDayIndex].routePath}
-                                    options={{
-                                        strokeColor: "#DD0066",
-                                        strokeOpacity: 0.75,
-                                        strokeWeight: 6
-                                    }}
-                                    onLoad={(polyline) => {
-                                        polylineRef.current = polyline;
-                                    }}
-                                />
-                            )}
                         </GoogleMap>
                         {selectedNode && (
                             <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2 }}>
