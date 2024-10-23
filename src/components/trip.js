@@ -68,17 +68,6 @@ const Trip = () => {
                 // Sort results by rating and take the top 3
                 const sortedResults = results.sort((a, b) => b.rating - a.rating).slice(0, 3);
 
-                // Set markers for the nearby places
-                const newMarkers = sortedResults.map((place, index) => ({
-                    position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-                    label: `${index + 2}`, // Start numbering from 2 since 1 is the initial location
-                    name: place.name, // Set the name of the place
-                    info: place.vicinity, // Set the info of the place
-                    rating: place.user_ratings_total, // Set the prominence (user ratings total) of the place
-                    duration: { hours: 2, minutes: 0 } // Default duration
-                }));
-                setMarkers((prevMarkers) => [...prevMarkers, ...newMarkers]); // Add new markers to the existing ones
-
                 // Set default durations for the new markers
                 const newDurations = sortedResults.reduce((acc, place) => {
                     acc[place.name] = { hours: 2, minutes: 0 };
@@ -95,9 +84,8 @@ const Trip = () => {
 
     // Calculate the route between the selected location and the nearby places
     const calculateRoute = (origin, places) => {
-        const directionsService = new window.google.maps.DirectionsService(); // Create a new DirectionsService instance
+        const directionsService = new window.google.maps.DirectionsService();
     
-        // Calculate distances from the origin to each place
         const placesWithDistances = places.map((place) => {
             const distance = window.google.maps.geometry.spherical.computeDistanceBetween(
                 new window.google.maps.LatLng(origin.lat, origin.lng),
@@ -106,53 +94,56 @@ const Trip = () => {
             return { ...place, distance };
         });
     
-        // Sort places by distance
         const sortedPlaces = placesWithDistances.sort((a, b) => a.distance - b.distance);
     
-        // Split sorted places into two halves
         const midpoint = Math.ceil(sortedPlaces.length / 2);
         const outwardJourney = sortedPlaces.slice(0, midpoint);
         const returnJourney = sortedPlaces.slice(midpoint).reverse();
     
-        // Create waypoints for the outward journey
-        const outwardWaypoints = outwardJourney.map((place) => ({
-            location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }, // Convert place geometry to lat/lng
-            stopover: true // Indicate that these are stopover points
-        }));
-    
-        // Create waypoints for the return journey
-        const returnWaypoints = returnJourney.map((place) => ({
-            location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }, // Convert place geometry to lat/lng
-            stopover: true // Indicate that these are stopover points
-        }));
-    
-        // Combine outward and return waypoints
-        const waypoints = [...outwardWaypoints, ...returnWaypoints];
+        const waypoints = [
+            ...outwardJourney.map((place) => ({
+                location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+                stopover: true
+            })),
+            ...returnJourney.map((place) => ({
+                location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+                stopover: true
+            }))
+        ];
     
         const request = {
             origin,
-            destination: origin, // Set the destination to be the initial node to complete the U shape
+            destination: origin,
             waypoints,
-            travelMode: window.google.maps.TravelMode.DRIVING // Set the travel mode to driving
+            travelMode: window.google.maps.TravelMode.DRIVING
         };
     
-        directionsService
-            .route(request, (result, status) => {
-                if (status === window.google.maps.DirectionsStatus.OK) {
-                    // Extract legs from the directions result
-                    const legs = result.routes[0].legs.map((leg) => ({
-                        start_location: leg.start_location,
-                        end_location: leg.end_location,
-                        path: leg.steps.flatMap((step) => step.path)
-                    }));
-                    setRoutePath(legs); // Update state with the route legs
+        directionsService.route(request, (result, status) => {
+            if (status === window.google.maps.DirectionsStatus.OK) {
+                const legs = result.routes[0].legs.map((leg) => ({
+                    start_location: leg.start_location,
+                    end_location: leg.end_location,
+                    path: leg.steps.flatMap((step) => step.path)
+                }));
+                setRoutePath(legs);
     
-                    // Extract travel times from the directions result
-                    const times = result.routes[0].legs.map((leg) => leg.duration.text);
-                    setTravelTimes(times); // Update state with the travel times
-                }
-            })
-            .catch(() => console.error("Route Request Failed!"));
+                const times = result.routes[0].legs.map((leg) => leg.duration.text);
+                setTravelTimes(times);
+    
+                // Update markers based on sorted places
+                const newMarkers = sortedPlaces.map((place, index) => ({
+                    position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+                    label: `${index + 2}`,
+                    name: place.name,
+                    info: place.vicinity,
+                    rating: place.user_ratings_total,
+                    duration: { hours: 2, minutes: 0 }
+                }));
+                setMarkers((prevMarkers) => [prevMarkers[0], ...newMarkers]); // Keep the initial marker at the start
+            } else {
+                console.error("Route Request Failed!");
+            }
+        });
     };
 
     const handleNotesChange = (e) => {
@@ -219,7 +210,7 @@ const Trip = () => {
             const blue = 0;
             colors.push(`rgb(${red},${green},${blue})`);
         }
-        return colors.reverse(); // Reverse the order of colors
+        return colors;
     };
 
     const colors = generateGradientColors(routePath.length);
