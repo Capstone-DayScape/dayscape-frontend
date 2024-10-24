@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { GoogleMap, LoadScript, Polyline, Marker } from "@react-google-maps/api";
+import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 import { Box, Typography, Card, CardContent, TextField, FormControl } from "@mui/material";
 import AddDayDialog from "./add-day-dialog"; // Import the AddDayDialog component
 import dayjs from "dayjs";
@@ -416,16 +416,6 @@ const Trip = () => {
                                     />
                                 )
                             ))}
-                            {days[selectedDayIndex].routePath.length > 0 && (
-                                <Polyline
-                                    path={days[selectedDayIndex].routePath}
-                                    options={{
-                                        strokeColor: "#DD0066",
-                                        strokeOpacity: 0.75,
-                                        strokeWeight: 6
-                                    }}
-                                />
-                            )}
                         </GoogleMap>
                         {selectedNode && (
                             <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2 }}>
