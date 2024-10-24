@@ -107,19 +107,20 @@ const Trip = () => {
             location: { lat: place.position.lat, lng: place.position.lng },
             stopover: true
         }));
-
+    
         if (waypoints.length === 0) {
             console.warn("No waypoints found for the route.");
             return;
         }
-
+    
         const request = {
             origin,
-            destination: waypoints[waypoints.length - 1].location,
+            destination: origin, // Set the destination to the origin to create a loop
             waypoints,
-            travelMode: window.google.maps.TravelMode.DRIVING
+            travelMode: window.google.maps.TravelMode.DRIVING,
+            optimizeWaypoints: true // Optimize the order of waypoints to form a circular route
         };
-
+    
         directionsService.route(request, (result, status) => {
             if (status === window.google.maps.DirectionsStatus.OK) {
                 const route = result.routes[0].overview_path.map((point) => ({
@@ -228,25 +229,40 @@ const Trip = () => {
     useEffect(() => {
         // Function to render the polyline
         const renderPolyline = () => {
-            // Remove the existing polyline from the map
+            // Remove the existing polylines from the map
             if (polylineRef.current) {
-                polylineRef.current.setMap(null);
+                polylineRef.current.forEach(polyline => polyline.setMap(null));
+                polylineRef.current = [];
             }
     
             // Add the polyline for the selected day
             if (daysRef.current[selectedDayIndex].routePath.length > 0 && mapRef.current) {
-                polylineRef.current = new window.google.maps.Polyline({
-                    path: daysRef.current[selectedDayIndex].routePath,
-                    strokeColor: "#DD0066",
-                    strokeOpacity: 0.75,
-                    strokeWeight: 6
+                const path = daysRef.current[selectedDayIndex].routePath;
+                const colors = generateGradientColors(path.length - 1);
+    
+                polylineRef.current = path.slice(0, -1).map((point, index) => {
+                    const segment = new window.google.maps.Polyline({
+                        path: [point, path[index + 1]],
+                        strokeColor: colors[index],
+                        strokeOpacity: 1,
+                        strokeWeight: 6
+                    });
+                    segment.setMap(mapRef.current);
+                    return segment;
                 });
-                polylineRef.current.setMap(mapRef.current);
             }
         };
     
         renderPolyline();
-    }, [selectedDayIndex, days]); // Run when selectedDayIndex or days changes
+    
+        // Cleanup function to remove the polylines when dependencies change
+        return () => {
+            if (polylineRef.current) {
+                polylineRef.current.forEach(polyline => polyline.setMap(null));
+                polylineRef.current = [];
+            }
+        };
+    }, [selectedDayIndex, days[selectedDayIndex]?.routePath, mapRef]);
     
     useEffect(() => {
         // Unselect any selected node when switching days
@@ -256,15 +272,11 @@ const Trip = () => {
     const generateGradientColors = (numColors) => {
         const colors = [];
         for (let i = 0; i < numColors; i++) {
-            const red = Math.floor((255 * i) / (numColors - 1));
-            const green = Math.floor(255 - (255 * i) / (numColors - 1));
-            const blue = 0;
-            colors.push(`rgb(${red},${green},${blue})`);
+            const hue = Math.floor((300 * i) / (numColors - 1)); // Hue range
+            colors.push(`hsl(${hue}, 100%, 50%)`); // Full saturation and 50% lightness
         }
         return colors;
     };
-
-    const colors = generateGradientColors(days[selectedDayIndex].routePath.length);
 
     return (
         <LoadScript
