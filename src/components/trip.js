@@ -227,6 +227,8 @@ const Trip = () => {
     }, [days]);
     
     useEffect(() => {
+        const selectedDayRoutePath = days[selectedDayIndex]?.routePath;
+    
         // Function to render the polyline
         const renderPolyline = () => {
             // Remove the existing polylines from the map
@@ -236,8 +238,8 @@ const Trip = () => {
             }
     
             // Add the polyline for the selected day
-            if (daysRef.current[selectedDayIndex].routePath.length > 0 && mapRef.current) {
-                const path = daysRef.current[selectedDayIndex].routePath;
+            if (selectedDayRoutePath && selectedDayRoutePath.length > 0 && mapRef.current) {
+                const path = selectedDayRoutePath;
                 const colors = generateGradientColors(path.length - 1);
     
                 polylineRef.current = path.slice(0, -1).map((point, index) => {
@@ -262,13 +264,13 @@ const Trip = () => {
                 polylineRef.current = [];
             }
         };
-    }, [selectedDayIndex, days[selectedDayIndex]?.routePath, mapRef]);
+    }, [selectedDayIndex, days, mapRef]);
     
     useEffect(() => {
         // Unselect any selected node when switching days
         setSelectedNode(null);
     }, [selectedDayIndex]); // Run only when selectedDayIndex changes
-
+    
     const generateGradientColors = (numColors) => {
         const colors = [];
         for (let i = 0; i < numColors; i++) {
@@ -276,7 +278,7 @@ const Trip = () => {
             colors.push(`hsl(${hue}, 100%, 50%)`); // Full saturation and 50% lightness
         }
         return colors;
-    };
+    };    
 
     return (
         <LoadScript
