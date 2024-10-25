@@ -18,8 +18,9 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { LoadScript, Autocomplete } from "@react-google-maps/api";
-import { postPreferencesToAPI } from "../api.js";
+import { postPreferencesToAPI } from "../api";
 import { useAuth0 } from "@auth0/auth0-react";
+import { maxDestinationsPerDay } from "./trip"; // Determines the maximum number of destinations and tags per day
 
 const libraries = ["places"];
 const InfoMessageVariant = {
@@ -28,28 +29,28 @@ const InfoMessageVariant = {
     WARNING: "warning",
     ERROR: "error"
 };
+// JSON structure to store data
+const tripData = {
+    startingDate: "",
+    startingLocation: {
+        address: "",
+        name: "",
+        latitude: null,
+        longitude: null
+    },
+    transportationMode: "",
+    globalTags: [],
+    days: [
+        {
+            index: 0,
+            dayTags: [],
+            routeStops: [],
+            usePreviousStops: false
+        }
+    ]
+};
 
 export default function CreateTrip() {
-    // JSON structure to store data
-    const tripData = {
-        startingDate: "",
-        startingLocation: {
-            address: "",
-            name: "",
-            latitude: null,
-            longitude: null
-        },
-        transportationMode: "",
-        globalTags: [],
-        days: [
-            {
-                index: 0,
-                dayTags: [],
-                routeStops: [],
-                usePreviousStops: false
-            }
-        ]
-    };
     const [dateObject, setDateObject] = React.useState(dayjs());
     const [startingAddress, setStartingAddress] = React.useState("");
     const [tagInput, setTagInput] = React.useState("");
@@ -100,8 +101,16 @@ export default function CreateTrip() {
     };
 
     const handleAddTag = () => {
-        if (tagInput.length > 0 && !tags.includes(tagInput)) {
-            setTags([...tags, tagInput]);
+        if (
+            (tagInput.length > 0 || tagInput.length < 80) &&
+            !tags.includes(tagInput.trim()) &&
+            tagInput.trim().length > 0
+        ) {
+            if (tags.length <= maxDestinationsPerDay) {
+                setTags([...tags, tagInput.trim()]);
+            } else {
+                setInfoMessage({ message: "Maximum number of tags reached.", variant: InfoMessageVariant.WARNING });
+            }
         }
         setTagInput(""); // Clears TextField input
     };
@@ -159,7 +168,7 @@ export default function CreateTrip() {
                                 setTagInput(e.target.value);
                             }}
                             onKeyDown={(e) => {
-                                if (e.key === "Enter") {
+                                if (e.key === "Enter" && tagInput.length > 0) {
                                     handleAddTag();
                                 }
                             }}

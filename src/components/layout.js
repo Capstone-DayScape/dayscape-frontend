@@ -64,7 +64,7 @@ const Layout = ({ children }) => {
                 </Toolbar>
             </AppBar>
             <Container sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <Box mt={2}>{children}</Box>
+                <Box my={2}>{children}</Box>
             </Container>
             <footer>
                 <Box

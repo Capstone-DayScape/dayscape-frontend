@@ -1,15 +1,19 @@
 import React, { useState, useRef, useEffect } from "react";
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
-import { Box, Typography, Card, CardContent, TextField, FormControl } from "@mui/material";
+import { Box, Typography, Card, CardContent, TextField, FormControl, Stack, Chip } from "@mui/material";
 import AddDayDialog from "./add-day-dialog"; // Import the AddDayDialog component
 import dayjs from "dayjs";
 
 const libraries = ["places", "marker"];
 const data = JSON.parse(window.sessionStorage.getItem("data"));
+// const minDestinationsPerDay = 3;
+export const maxDestinationsPerDay = 5;
 
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
-    const [days, setDays] = useState([{ markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]);
+    const [days, setDays] = useState([
+        { placesResponse: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }
+    ]);
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -103,6 +107,7 @@ const Trip = () => {
                 const newMarkers = sortedResults.slice(0, 3).map((place, index) => ({
                     position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
                     label: `${index + 2}`,
+                    types: place.types,
                     name: place.name,
                     info: place.vicinity,
                     rating: place.user_ratings_total,
@@ -131,7 +136,7 @@ const Trip = () => {
                 console.error("PlacesServiceStatus not OK:", status);
             }
         };
-
+        // Makes the request to fetch nearby places
         service.nearbySearch(request, handleResults);
     };
 
@@ -316,8 +321,8 @@ const Trip = () => {
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
             libraries={libraries}
             onLoad={handleLoad}>
-            <Box display="flex" flexDirection="column" height="80vh" alignItems="center" justifyContent="center">
-                <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
+            <Stack direction="column">
+                <Box display="flex" alignItems="center" justifyContent="center" mb={4} mt={3}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
                             <React.Fragment key={index}>
@@ -371,7 +376,7 @@ const Trip = () => {
                         </Box>
                     </Box>
                 </Box>
-                <Box display="flex" height="100%" width="100%" alignItems="center" justifyContent="center">
+                <Stack direction="row">
                     <Box
                         width="25%"
                         padding="10px"
@@ -475,6 +480,16 @@ const Trip = () => {
                                     <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                         {selectedNode.info}
                                     </Typography>
+                                    {selectedNode.types && (
+                                        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
+                                            <Typography variant="body1" sx={{ mt: 1 / 2 }}>
+                                                Types:
+                                            </Typography>
+                                            {selectedNode.types.map((tag, index) => (
+                                                <Chip variant="outlined" label={tag} key={index} />
+                                            ))}
+                                        </Stack>
+                                    )}
                                     {selectedNode.label !== "1" && (
                                         <>
                                             <FormControl fullWidth variant="outlined" margin="normal">
@@ -520,8 +535,8 @@ const Trip = () => {
                             </Card>
                         )}
                     </Box>
-                </Box>
-            </Box>
+                </Stack>
+            </Stack>
             <AddDayDialog
                 open={isDialogOpen}
                 onClose={() => setIsDialogOpen(false)}
