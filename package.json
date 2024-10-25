@@ -14,7 +14,10 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.7.7",
+    "chai": "^5.1.2",
     "dayjs": "^1.11.13",
+    "dotenv": "^16.4.5",
+    "mocha": "^10.7.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-helmet": "^6.1.0",
@@ -26,6 +29,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "api_test": "mocha src/tests/api_tests.js",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
