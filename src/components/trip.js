@@ -16,6 +16,9 @@ const Trip = () => {
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
 
+    /**
+     * Handles events after the Google Maps API has loaded.
+     */
     const handleLoad = () => {
         const loadGoogleMaps = async () => {
             if (window.google && window.google.maps) {
@@ -29,6 +32,9 @@ const Trip = () => {
         });
     };
 
+    /**
+     * Sets information for the first marker and sets the map center.
+     */
     const getData = () => {
         if (data) {
             const location = {
@@ -36,13 +42,36 @@ const Trip = () => {
                 lng: data.startingLocation.longitude || 0
             };
             setMapCenter(location); // Center the map on the selected location
-            setDays([{ markers: [{ position: location, label: "1", name: data.startingLocation.name, info: data.startingLocation.address, rating: data.startingLocation.user_ratings_total || "N/A" }], routePath: [], travelTimes: [], durations: {}, notes: {} }]);
+            setDays([
+                {
+                    markers: [
+                        {
+                            position: location,
+                            label: "1",
+                            name: data.startingLocation.name,
+                            info: data.startingLocation.address,
+                            rating: data.startingLocation.user_ratings_total || "N/A"
+                        }
+                    ],
+                    routePath: [],
+                    travelTimes: [],
+                    durations: {},
+                    notes: {}
+                }
+            ]);
             fetchNearbyPlaces(location, 0, false); // Fetch nearby places for the first day
         } else {
             console.error("Couldn't load data from session storage!");
         }
     };
 
+    /**
+     * Sends a request to the Google Maps Places API to fetch nearby places. Updates the current day destinations. Adds
+     * markers for each destination and sets duration at each location.
+     * @param {{lat:number, lng:number}} location Starting location
+     * @param {number} dayIndex Index of the current day
+     * @param {boolean} usePrevStops Whether to use previous stops for this day
+     */
     const fetchNearbyPlaces = (location, dayIndex, usePrevStops) => {
         if (!window.google || !window.google.maps || !window.google.maps.places) {
             console.error("Google Maps Places API is not loaded.");
@@ -52,18 +81,23 @@ const Trip = () => {
         const service = new window.google.maps.places.PlacesService(document.createElement("div"));
         const request = {
             location,
-            radius: "5000",
-            type: ["restaurant"],
+            radius: 5000,
+            type: "restaurant",
             rankBy: window.google.maps.places.RankBy.PROMINENCE
         };
 
+        /**
+         * Callback function that handles the response from the nearby search in Places API.
+         * @param {google.maps.places.PlaceResult[]} results Array of place results
+         * @param {google.maps.places.PlacesServiceStatus} status Status of the request
+         */
         const handleResults = (results, status) => {
             if (status === window.google.maps.places.PlacesServiceStatus.OK) {
                 let sortedResults = results.sort((a, b) => b.rating - a.rating);
 
                 if (!usePrevStops) {
-                    const usedPlaces = new Set(days.flatMap(day => day.markers.map(marker => marker.name)));
-                    sortedResults = sortedResults.filter(place => !usedPlaces.has(place.name));
+                    const usedPlaces = new Set(days.flatMap((day) => day.markers.map((marker) => marker.name)));
+                    sortedResults = sortedResults.filter((place) => !usedPlaces.has(place.name));
                 }
 
                 const newMarkers = sortedResults.slice(0, 3).map((place, index) => ({
@@ -101,6 +135,14 @@ const Trip = () => {
         service.nearbySearch(request, handleResults);
     };
 
+    /**
+     * Calculates the route between the starting location and the given destinations for the current day index. Sets
+     * the polyline path on the map.
+     * @param {{lat:number, lng:number}} origin Starting location
+     * @param {{duration: {hours: number, minutes: number}, name: *, rating: *, position: {lng: *, lat: *}, label: string, info: *}[]} places
+     * List of destinations
+     * @param {number} dayIndex Current day index
+     */
     const calculateRoute = (origin, places, dayIndex) => {
         const directionsService = new window.google.maps.DirectionsService();
         const waypoints = places.map((place) => ({
@@ -120,23 +162,27 @@ const Trip = () => {
             travelMode: window.google.maps.TravelMode.DRIVING
         };
 
-        directionsService.route(request, (result, status) => {
-            if (status === window.google.maps.DirectionsStatus.OK) {
-                const route = result.routes[0].overview_path.map((point) => ({
-                    lat: point.lat(),
-                    lng: point.lng()
-                }));
-                const times = result.routes[0].legs.map((leg) => leg.duration.text);
-                setDays((prevDays) => {
-                    const updatedDays = [...prevDays];
-                    updatedDays[dayIndex].routePath = route;
-                    updatedDays[dayIndex].travelTimes = times;
-                    return updatedDays;
-                });
-            } else {
-                console.error("Route calculation failed:", status);
-            }
-        });
+        directionsService
+            .route(request, (result, status) => {
+                if (status === window.google.maps.DirectionsStatus.OK) {
+                    const route = result.routes[0].overview_path.map((point) => ({
+                        lat: point.lat(),
+                        lng: point.lng()
+                    }));
+                    const times = result.routes[0].legs.map((leg) => leg.duration.text);
+                    setDays((prevDays) => {
+                        const updatedDays = [...prevDays];
+                        updatedDays[dayIndex].routePath = route;
+                        updatedDays[dayIndex].travelTimes = times;
+                        return updatedDays;
+                    });
+                } else {
+                    throw new Error(`Route calculation failed: ${status}`);
+                }
+            })
+            .catch((error) => {
+                console.error(error);
+            });
     };
 
     const handleNotesChange = (e) => {
@@ -172,22 +218,26 @@ const Trip = () => {
         });
     };
 
+    /**
+     * Calculates and returns the total trip duration for the selected day.
+     * @returns {string} Total trip duration in hours and minutes
+     */
     const calculateTotalTripDuration = () => {
         let totalMinutes = 0;
         const durations = days[selectedDayIndex].durations;
         const travelTimes = days[selectedDayIndex].travelTimes;
 
-        Object.entries(durations).forEach(([name, duration]) => {
+        Object.entries(durations).forEach(([_, duration]) => {
             const locationMinutes = (parseInt(duration.hours) || 0) * 60 + (parseInt(duration.minutes) || 0);
             totalMinutes += locationMinutes;
         });
 
-        travelTimes.forEach(time => {
-            const [value, unit] = time.split(' ');
+        travelTimes.forEach((time) => {
+            const [value, unit] = time.split(" ");
             let travelMinutes = 0;
-            if (unit.includes('hour')) {
+            if (unit.includes("hour")) {
                 travelMinutes = parseInt(value) * 60;
-            } else if (unit.includes('min')) {
+            } else if (unit.includes("min")) {
                 travelMinutes = parseInt(value);
             }
             totalMinutes += travelMinutes;
@@ -205,7 +255,15 @@ const Trip = () => {
     const handleSaveDay = (newDay) => {
         const newDayIndex = days.length;
         const newDayData = {
-            markers: [{ position: mapCenter, label: "1", name: data.startingLocation.name, info: data.startingLocation.address, rating: data.startingLocation.user_ratings_total || "N/A" }],
+            markers: [
+                {
+                    position: mapCenter,
+                    label: "1",
+                    name: data.startingLocation.name,
+                    info: data.startingLocation.address,
+                    rating: data.startingLocation.user_ratings_total || "N/A"
+                }
+            ],
             routePath: [],
             travelTimes: [],
             durations: {},
@@ -224,7 +282,7 @@ const Trip = () => {
     useEffect(() => {
         daysRef.current = days;
     }, [days]);
-    
+
     useEffect(() => {
         // Function to render the polyline
         const renderPolyline = () => {
@@ -232,7 +290,7 @@ const Trip = () => {
             if (polylineRef.current) {
                 polylineRef.current.setMap(null);
             }
-    
+
             // Add the polyline for the selected day
             if (daysRef.current[selectedDayIndex].routePath.length > 0 && mapRef.current) {
                 polylineRef.current = new window.google.maps.Polyline({
@@ -244,10 +302,10 @@ const Trip = () => {
                 polylineRef.current.setMap(mapRef.current);
             }
         };
-    
+
         renderPolyline();
     }, [selectedDayIndex, days]); // Run when selectedDayIndex or days changes
-    
+
     useEffect(() => {
         // Unselect any selected node when switching days
         setSelectedNode(null);
@@ -274,7 +332,7 @@ const Trip = () => {
                                         alignItems: "center",
                                         justifyContent: "center",
                                         color: "white",
-                                        cursor: "pointer",
+                                        cursor: "pointer"
                                     }}>
                                     {index + 1}
                                 </Box>
@@ -289,14 +347,14 @@ const Trip = () => {
                                 )}
                             </React.Fragment>
                         ))}
-                            <Box
-                                sx={{
-                                    width: 35,
-                                    height: 2,
-                                    backgroundColor: "#686879"
-                                }}
-                            />
-                            <Box
+                        <Box
+                            sx={{
+                                width: 35,
+                                height: 2,
+                                backgroundColor: "#686879"
+                            }}
+                        />
+                        <Box
                             onClick={handleAddDay}
                             sx={{
                                 width: 40,
@@ -322,63 +380,64 @@ const Trip = () => {
                         alignItems="center"
                         overflow="auto"
                         mr={4}>
-                        {days[selectedDayIndex].markers.map((marker, index) => (
-                            marker && (
-                                <Box
-                                    key={index}
-                                    display="flex"
-                                    flexDirection="column"
-                                    alignItems="center"
-                                    mb={2}
-                                    onClick={() => {
-                                        setSelectedNode(selectedNode?.name === marker.name ? null : marker);
-                                    }}
-                                    sx={{ cursor: "pointer" }}>
+                        {days[selectedDayIndex].markers.map(
+                            (marker, index) =>
+                                marker && (
                                     <Box
+                                        key={index}
                                         display="flex"
                                         flexDirection="column"
                                         alignItems="center"
-                                        justifyContent="center"
-                                        bgcolor={selectedNode?.name === marker.name ? "#4caf50" : "primary.main"}
-                                        color="white"
-                                        borderRadius="16px"
-                                        padding="10px"
-                                        width="100%"
-                                        minWidth="250px"
-                                        minHeight="50px"
-                                        textAlign="center"
-                                        boxShadow={3}>
-                                        <Typography variant="h6">{marker.name}</Typography>
-                                    </Box>
-                                    {index < days[selectedDayIndex].markers.length - 1 && (
-                                        <Box display="flex" alignItems="center">
-                                            <Box
-                                                position="relative"
-                                                width="2px"
-                                                height="65px"
-                                                bgcolor="#686879"
-                                                mb={-2}
-                                                sx={{
-                                                    "&::after": {
-                                                        content: '""',
-                                                        position: "absolute",
-                                                        bottom: 0,
-                                                        left: "50%",
-                                                        transform: "translateX(-50%)",
-                                                        borderLeft: "5px solid transparent",
-                                                        borderRight: "5px solid transparent",
-                                                        borderTop: "10px solid #686879"
-                                                    }
-                                                }}
-                                            />
-                                            <Typography variant="body2" ml={2} color="#686879">
-                                                {days[selectedDayIndex].travelTimes[index]}
-                                            </Typography>
+                                        mb={2}
+                                        onClick={() => {
+                                            setSelectedNode(selectedNode?.name === marker.name ? null : marker);
+                                        }}
+                                        sx={{ cursor: "pointer" }}>
+                                        <Box
+                                            display="flex"
+                                            flexDirection="column"
+                                            alignItems="center"
+                                            justifyContent="center"
+                                            bgcolor={selectedNode?.name === marker.name ? "#4caf50" : "primary.main"}
+                                            color="white"
+                                            borderRadius="16px"
+                                            padding="10px"
+                                            width="100%"
+                                            minWidth="250px"
+                                            minHeight="50px"
+                                            textAlign="center"
+                                            boxShadow={3}>
+                                            <Typography variant="h6">{marker.name}</Typography>
                                         </Box>
-                                    )}
-                                </Box>
-                            )
-                        ))}
+                                        {index < days[selectedDayIndex].markers.length - 1 && (
+                                            <Box display="flex" alignItems="center">
+                                                <Box
+                                                    position="relative"
+                                                    width="2px"
+                                                    height="65px"
+                                                    bgcolor="#686879"
+                                                    mb={-2}
+                                                    sx={{
+                                                        "&::after": {
+                                                            content: '""',
+                                                            position: "absolute",
+                                                            bottom: 0,
+                                                            left: "50%",
+                                                            transform: "translateX(-50%)",
+                                                            borderLeft: "5px solid transparent",
+                                                            borderRight: "5px solid transparent",
+                                                            borderTop: "10px solid #686879"
+                                                        }
+                                                    }}
+                                                />
+                                                <Typography variant="body2" ml={2} color="#686879">
+                                                    {days[selectedDayIndex].travelTimes[index]}
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                )
+                        )}
                         <Typography variant="body1" mt={2} align="center" color="#686879">
                             Total Time: {calculateTotalTripDuration()}
                         </Typography>
@@ -393,41 +452,44 @@ const Trip = () => {
                             zoom={14}
                             center={mapCenter}
                             options={{ mapId: "651e26fab50abd83" }}>
-                            {days[selectedDayIndex].markers.map((marker, index) => (
-                                marker && (
-                                    <Marker
-                                        key={index}
-                                        position={marker.position}
-                                        label={marker.label}
-                                        onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
-                                    />
-                                )
-                            ))}
+                            {days[selectedDayIndex].markers.map(
+                                (marker, index) =>
+                                    marker && (
+                                        <Marker
+                                            key={index}
+                                            position={marker.position}
+                                            label={marker.label}
+                                            onClick={() =>
+                                                setSelectedNode(selectedNode?.name === marker.name ? null : marker)
+                                            }
+                                        />
+                                    )
+                            )}
                         </GoogleMap>
                         {selectedNode && (
-                            <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2 }}>
+                            <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
                                 <CardContent>
                                     <Typography variant="h6" gutterBottom>
                                         {selectedNode.name}
                                     </Typography>
-                                    <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: 'gray' }}>
+                                    <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                         {selectedNode.info}
                                     </Typography>
                                     {selectedNode.label !== "1" && (
                                         <>
                                             <FormControl fullWidth variant="outlined" margin="normal">
-                                                <Typography variant="body1">
-                                                    Duration:
-                                                </Typography>
+                                                <Typography variant="body1">Duration:</Typography>
                                                 <Box display="flex">
                                                     <TextField
                                                         label="Hours"
                                                         type="number"
                                                         variant="outlined"
                                                         margin="normal"
-                                                        value={days[selectedDayIndex].durations[selectedNode.name]?.hours}
+                                                        value={
+                                                            days[selectedDayIndex].durations[selectedNode.name]?.hours
+                                                        }
                                                         onChange={handleHoursChange}
-                                                        style={{ marginRight: '10px' }}
+                                                        style={{ marginRight: "10px" }}
                                                         slotProps={{ htmlInput: { min: 0 } }}
                                                     />
                                                     <TextField
@@ -435,7 +497,9 @@ const Trip = () => {
                                                         type="number"
                                                         variant="outlined"
                                                         margin="normal"
-                                                        value={days[selectedDayIndex].durations[selectedNode.name]?.minutes}
+                                                        value={
+                                                            days[selectedDayIndex].durations[selectedNode.name]?.minutes
+                                                        }
                                                         onChange={handleMinutesChange}
                                                         slotProps={{ htmlInput: { min: 0 } }}
                                                     />
@@ -463,7 +527,7 @@ const Trip = () => {
                 onClose={() => setIsDialogOpen(false)}
                 onSave={handleSaveDay}
                 startingLocation={data.startingLocation.name}
-                previousDayDate={dayjs().format('YYYY-MM-DD')}
+                previousDayDate={dayjs().format("YYYY-MM-DD")}
             />
         </LoadScript>
     );
