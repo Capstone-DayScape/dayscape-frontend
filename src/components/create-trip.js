@@ -20,7 +20,7 @@ import dayjs from "dayjs";
 import { LoadScript, Autocomplete } from "@react-google-maps/api";
 import { postPreferencesToAPI } from "../api";
 import { useAuth0 } from "@auth0/auth0-react";
-import { maxDestinationsPerDay } from "./trip"; // Determines the maximum number of destinations and tags per day
+import { MAX_DESTINATIONS_PER_DAY } from "./trip"; // Determines the maximum number of destinations and tags per day
 
 const libraries = ["places"];
 const InfoMessageVariant = {
@@ -106,7 +106,7 @@ export default function CreateTrip() {
             !tags.includes(tagInput.trim()) &&
             tagInput.trim().length > 0
         ) {
-            if (tags.length <= maxDestinationsPerDay) {
+            if (tags.length <= MAX_DESTINATIONS_PER_DAY) {
                 setTags([...tags, tagInput.trim()]);
             } else {
                 setInfoMessage({ message: "Maximum number of tags reached.", variant: InfoMessageVariant.WARNING });

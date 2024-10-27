@@ -5,14 +5,14 @@ import AddDayDialog from "./add-day-dialog"; // Import the AddDayDialog componen
 import dayjs from "dayjs";
 
 const libraries = ["places", "marker"];
-const data = JSON.parse(window.sessionStorage.getItem("data"));
-// const minDestinationsPerDay = 3;
-export const maxDestinationsPerDay = 5;
+const tripData = JSON.parse(window.sessionStorage.getItem("data"));
+const MIN_DESTINATIONS_PER_DAY = 3;
+export const MAX_DESTINATIONS_PER_DAY = 5;
 
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [days, setDays] = useState([
-        { placesResponse: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }
+        { placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }
     ]);
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
@@ -40,10 +40,10 @@ const Trip = () => {
      * Sets information for the first marker and sets the map center.
      */
     const getData = () => {
-        if (data) {
+        if (tripData) {
             const location = {
-                lat: data.startingLocation.latitude || 0,
-                lng: data.startingLocation.longitude || 0
+                lat: tripData.startingLocation.latitude || 0,
+                lng: tripData.startingLocation.longitude || 0
             };
             setMapCenter(location); // Center the map on the selected location
             setDays([
@@ -52,15 +52,16 @@ const Trip = () => {
                         {
                             position: location,
                             label: "1",
-                            name: data.startingLocation.name,
-                            info: data.startingLocation.address,
-                            rating: data.startingLocation.user_ratings_total || "N/A"
+                            name: tripData.startingLocation.name,
+                            info: tripData.startingLocation.address,
+                            rating: tripData.startingLocation.user_ratings_total || "N/A"
                         }
                     ],
                     routePath: [],
                     travelTimes: [],
                     durations: {},
-                    notes: {}
+                    notes: {},
+                    placeResponses: []
                 }
             ]);
             fetchNearbyPlaces(location, 0, false); // Fetch nearby places for the first day
@@ -82,62 +83,99 @@ const Trip = () => {
             return;
         }
 
+        let requestLeft = tripData.days[dayIndex].dayTags.length;
+
         const service = new window.google.maps.places.PlacesService(document.createElement("div"));
-        const request = {
-            location,
-            radius: 5000,
-            type: "restaurant",
-            rankBy: window.google.maps.places.RankBy.PROMINENCE
-        };
+        const tags = tripData.days[dayIndex].dayTags;
+        const responses = [];
 
-        /**
-         * Callback function that handles the response from the nearby search in Places API.
-         * @param {google.maps.places.PlaceResult[]} results Array of place results
-         * @param {google.maps.places.PlacesServiceStatus} status Status of the request
-         */
-        const handleResults = (results, status) => {
-            if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                let sortedResults = results.sort((a, b) => b.rating - a.rating);
+        tags.forEach((tag, index) => {
+            const request = {
+                location,
+                radius: 5000,
+                type: tag,
+                rankBy: window.google.maps.places.RankBy.PROMINENCE
+            };
 
-                if (!usePrevStops) {
-                    const usedPlaces = new Set(days.flatMap((day) => day.markers.map((marker) => marker.name)));
-                    sortedResults = sortedResults.filter((place) => !usedPlaces.has(place.name));
-                }
+            // Makes the request to fetch nearby places
+            service.nearbySearch(request, (results, status) => {
+                const numTags = tripData.days[dayIndex].dayTags.length;
 
-                const newMarkers = sortedResults.slice(0, 3).map((place, index) => ({
-                    position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-                    label: `${index + 2}`,
-                    types: place.types,
-                    name: place.name,
-                    info: place.vicinity,
-                    rating: place.user_ratings_total,
-                    duration: { hours: 2, minutes: 0 }
-                }));
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    const sortedResults = results.sort((a, b) => b.rating - a.rating);
 
-                setDays((prevDays) => {
-                    const updatedDays = [...prevDays];
-                    updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
-                    updatedDays[dayIndex].durations = {
-                        ...updatedDays[dayIndex].durations,
-                        ...newMarkers.reduce((acc, marker) => {
-                            acc[marker.name] = { hours: 2, minutes: 0 };
-                            return acc;
-                        }, {})
-                    };
-                    return updatedDays;
-                });
-
-                if (newMarkers.length > 0) {
-                    calculateRoute(location, newMarkers, dayIndex);
+                    responses.push({
+                        tag: tag,
+                        results: sortedResults,
+                        resultIndex: 0
+                    });
                 } else {
-                    console.warn("No new places found for the given criteria.");
+                    console.error("PlacesServiceStatus not OK:", status);
                 }
-            } else {
-                console.error("PlacesServiceStatus not OK:", status);
-            }
-        };
-        // Makes the request to fetch nearby places
-        service.nearbySearch(request, handleResults);
+
+                // Last request
+                if (requestLeft === 1) {
+                    if (!usePrevStops) {
+                        for (let i = 0; i < responses.length; i++) {
+                            const usedPlaces = new Set(days.flatMap((day) => day.markers.map((marker) => marker.name)));
+                            responses[i].results = responses[i].results.filter((place) => !usedPlaces.has(place.name));
+                            responses[i].resultIndex = 0;
+                        }
+                    }
+
+                    if (numTags < MIN_DESTINATIONS_PER_DAY) {
+                        const newDestinations = [];
+
+                        // Extracts new destinations from placesResponse
+                        for (let i = 0; i < MIN_DESTINATIONS_PER_DAY; i++) {
+                            const responseIdx = i % responses.length;
+                            // TODO: Prevent possible bug that can occur if we run out of results
+                            newDestinations.push({
+                                tag: responses[responseIdx].tag,
+                                destination: responses[responseIdx].results[responses[responseIdx].resultIndex]
+                            });
+                            responses[responseIdx].resultIndex++;
+                        }
+
+                        // TODO: Extract tag to add to marker
+                        const newMarkers = newDestinations.map((place, index) => ({
+                            position: {
+                                lat: place.destination.geometry.location.lat(),
+                                lng: place.destination.geometry.location.lng()
+                            },
+                            label: `${index + 2}`,
+                            type: place.tag,
+                            types: place.destination.types,
+                            name: place.destination.name,
+                            info: place.destination.vicinity,
+                            rating: place.destination.user_ratings_total,
+                            duration: { hours: 2, minutes: 0 }
+                        }));
+
+                        setDays((prevDays) => {
+                            const updatedDays = [...prevDays];
+                            updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
+                            updatedDays[dayIndex].placeResponses = responses;
+                            updatedDays[dayIndex].durations = {
+                                ...updatedDays[dayIndex].durations,
+                                ...newMarkers.reduce((acc, marker) => {
+                                    acc[marker.name] = { hours: 2, minutes: 0 };
+                                    return acc;
+                                }, {})
+                            };
+                            return updatedDays;
+                        });
+
+                        if (newMarkers.length > 0) {
+                            calculateRoute(location, newMarkers, dayIndex);
+                        } else {
+                            console.warn("No new places found for the given criteria.");
+                        }
+                    }
+                }
+                requestLeft--;
+            });
+        });
     };
 
     /**
@@ -264,15 +302,16 @@ const Trip = () => {
                 {
                     position: mapCenter,
                     label: "1",
-                    name: data.startingLocation.name,
-                    info: data.startingLocation.address,
-                    rating: data.startingLocation.user_ratings_total || "N/A"
+                    name: tripData.startingLocation.name,
+                    info: tripData.startingLocation.address,
+                    rating: tripData.startingLocation.user_ratings_total || "N/A"
                 }
             ],
             routePath: [],
             travelTimes: [],
             durations: {},
-            notes: {}
+            notes: {},
+            placeResponses: []
         };
 
         fetchNearbyPlaces(mapCenter, newDayIndex, newDay.usePrevStops);
@@ -486,7 +525,13 @@ const Trip = () => {
                                                 Types:
                                             </Typography>
                                             {selectedNode.types.map((tag, index) => (
-                                                <Chip variant="outlined" label={tag} key={index} />
+                                                <Chip
+                                                    // variant={selectedNode.type === tag ? "filled" : "outlined"}
+                                                    variant="outlined"
+                                                    color={selectedNode.type === tag ? "primary" : "default"}
+                                                    label={tag}
+                                                    key={index}
+                                                />
                                             ))}
                                         </Stack>
                                     )}
@@ -541,7 +586,7 @@ const Trip = () => {
                 open={isDialogOpen}
                 onClose={() => setIsDialogOpen(false)}
                 onSave={handleSaveDay}
-                startingLocation={data.startingLocation.name}
+                startingLocation={tripData.startingLocation.name}
                 previousDayDate={dayjs().format("YYYY-MM-DD")}
             />
         </LoadScript>
