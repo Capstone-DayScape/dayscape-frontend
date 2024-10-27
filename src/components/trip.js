@@ -89,7 +89,7 @@ const Trip = () => {
         const tags = tripData.days[dayIndex].dayTags;
         const responses = [];
 
-        tags.forEach((tag, index) => {
+        tags.forEach((tag) => {
             const request = {
                 location,
                 radius: 5000,
@@ -129,7 +129,6 @@ const Trip = () => {
                         // Extracts new destinations from placesResponse
                         for (let i = 0; i < MIN_DESTINATIONS_PER_DAY; i++) {
                             const responseIdx = i % responses.length;
-                            // TODO: Prevent possible bug that can occur if we run out of results
                             newDestinations.push({
                                 tag: responses[responseIdx].tag,
                                 destination: responses[responseIdx].results[responses[responseIdx].resultIndex]
@@ -137,39 +136,83 @@ const Trip = () => {
                             responses[responseIdx].resultIndex++;
                         }
 
-                        // TODO: Extract tag to add to marker
-                        const newMarkers = newDestinations.map((place, index) => ({
-                            position: {
-                                lat: place.destination.geometry.location.lat(),
-                                lng: place.destination.geometry.location.lng()
-                            },
-                            label: `${index + 2}`,
-                            type: place.tag,
-                            types: place.destination.types,
-                            name: place.destination.name,
-                            info: place.destination.vicinity,
-                            rating: place.destination.user_ratings_total,
-                            duration: { hours: 2, minutes: 0 }
-                        }));
+                        try {
+                            const newMarkers = newDestinations.map((place, index) => ({
+                                position: {
+                                    lat: place.destination.geometry.location.lat(),
+                                    lng: place.destination.geometry.location.lng()
+                                },
+                                label: `${index + 2}`,
+                                type: place.tag,
+                                types: place.destination.types,
+                                name: place.destination.name,
+                                info: place.destination.vicinity,
+                                rating: place.destination.user_ratings_total,
+                                duration: { hours: 2, minutes: 0 }
+                            }));
 
-                        setDays((prevDays) => {
-                            const updatedDays = [...prevDays];
-                            updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
-                            updatedDays[dayIndex].placeResponses = responses;
-                            updatedDays[dayIndex].durations = {
-                                ...updatedDays[dayIndex].durations,
-                                ...newMarkers.reduce((acc, marker) => {
-                                    acc[marker.name] = { hours: 2, minutes: 0 };
-                                    return acc;
-                                }, {})
-                            };
-                            return updatedDays;
+                            setDays((prevDays) => {
+                                const updatedDays = [...prevDays];
+                                updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
+                                updatedDays[dayIndex].placeResponses = responses;
+                                updatedDays[dayIndex].durations = {
+                                    ...updatedDays[dayIndex].durations,
+                                    ...newMarkers.reduce((acc, marker) => {
+                                        acc[marker.name] = { hours: 2, minutes: 0 };
+                                        return acc;
+                                    }, {})
+                                };
+                                return updatedDays;
+                            });
+                            calculateRoute(location, newMarkers, dayIndex);
+                        } catch (error) {
+                            console.error(`newDestinations has undefined properties: ${error.message}`);
+                        }
+                    } else if (numTags > MAX_DESTINATIONS_PER_DAY) {
+                        // Should not happen unless backend sends over MAX_DESTINATIONS_PER_DAY
+                        console.log("Received too many destinations.");
+                    } else {
+                        const newDestinations = [];
+
+                        responses.forEach((response) => {
+                            newDestinations.push({
+                                tag: response.tag,
+                                destination: response.results[response.resultIndex]
+                            });
+                            response.resultIndex++;
                         });
 
-                        if (newMarkers.length > 0) {
+                        try {
+                            const newMarkers = newDestinations.map((place, index) => ({
+                                position: {
+                                    lat: place.destination.geometry.location.lat(),
+                                    lng: place.destination.geometry.location.lng()
+                                },
+                                label: `${index + 2}`,
+                                type: place.tag,
+                                types: place.destination.types,
+                                name: place.destination.name,
+                                info: place.destination.vicinity,
+                                rating: place.destination.user_ratings_total,
+                                duration: { hours: 2, minutes: 0 }
+                            }));
+
+                            setDays((prevDays) => {
+                                const updatedDays = [...prevDays];
+                                updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
+                                updatedDays[dayIndex].placeResponses = responses;
+                                updatedDays[dayIndex].durations = {
+                                    ...updatedDays[dayIndex].durations,
+                                    ...newMarkers.reduce((acc, marker) => {
+                                        acc[marker.name] = { hours: 2, minutes: 0 };
+                                        return acc;
+                                    }, {})
+                                };
+                                return updatedDays;
+                            });
                             calculateRoute(location, newMarkers, dayIndex);
-                        } else {
-                            console.warn("No new places found for the given criteria.");
+                        } catch (error) {
+                            console.error(`newDestinations has undefined properties: ${error.message}`);
                         }
                     }
                 }
@@ -295,6 +338,10 @@ const Trip = () => {
         setIsDialogOpen(true);
     };
 
+    /**
+     * Saves the new day data to the session storage and updates the map accordingly.
+     * @param {{ date:dayjs.Dayjs, tags:string[], transportMode:string, usePrevStops:boolean }} newDay
+     */
     const handleSaveDay = (newDay) => {
         const newDayIndex = days.length;
         const newDayData = {
@@ -313,6 +360,16 @@ const Trip = () => {
             notes: {},
             placeResponses: []
         };
+
+        const newTripData = tripData;
+        newTripData.days.push({
+            index: newDayIndex,
+            dayTags: newDay.tags,
+            routeStops: [],
+            usePreviousStops: newDay.usePrevStops,
+            transportationMode: newDay.transportMode
+        });
+        window.sessionStorage.setItem("data", JSON.stringify(newTripData));
 
         fetchNearbyPlaces(mapCenter, newDayIndex, newDay.usePrevStops);
 

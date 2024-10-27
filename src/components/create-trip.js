@@ -23,7 +23,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { MAX_DESTINATIONS_PER_DAY } from "./trip"; // Determines the maximum number of destinations and tags per day
 
 const libraries = ["places"];
-const InfoMessageVariant = {
+export const INFO_MESSAGE_VARIANT = {
     SUCCESS: "success",
     INFO: "info",
     WARNING: "warning",
@@ -38,14 +38,14 @@ const tripData = {
         latitude: null,
         longitude: null
     },
-    transportationMode: "",
     globalTags: [],
     days: [
         {
             index: 0,
             dayTags: [],
             routeStops: [],
-            usePreviousStops: false
+            usePreviousStops: false,
+            transportationMode: ""
         }
     ]
 };
@@ -55,7 +55,7 @@ export default function CreateTrip() {
     const [startingAddress, setStartingAddress] = React.useState("");
     const [tagInput, setTagInput] = React.useState("");
     const [tags, setTags] = React.useState([]);
-    const [transportMode, setTransportMode] = React.useState("");
+    const [transportMode, setTransportMode] = React.useState("DRIVING");
     const [usePrevStops, setUsePrevStops] = React.useState(false);
     const [infoMessage, setInfoMessage] = React.useState({ message: "", variant: "" });
 
@@ -64,7 +64,7 @@ export default function CreateTrip() {
     const autocompleteRef = React.useRef(null);
 
     const saveData = async () => {
-        setInfoMessage({ message: "Retrieving form data...", variant: InfoMessageVariant.INFO });
+        setInfoMessage({ message: "Retrieving form data...", variant: INFO_MESSAGE_VARIANT.INFO });
         try {
             const place = autocompleteRef.current.getPlace();
 
@@ -77,39 +77,39 @@ export default function CreateTrip() {
             tripData.startingLocation.address = startingAddress;
             tripData.startingDate = dateObject.hour(0).minute(0).second(0).millisecond(0).toISOString();
             tripData.days[0].usePreviousStops = usePrevStops;
-            tripData.transportationMode = transportMode;
+            tripData.days[0].transportationMode = transportMode;
 
-            setInfoMessage({ message: "Getting access token...", variant: InfoMessageVariant.INFO });
+            setInfoMessage({ message: "Getting access token...", variant: INFO_MESSAGE_VARIANT.INFO });
             const accessToken = await getAccessTokenSilently();
-            setInfoMessage({ message: "Sending preferences to backend...", variant: InfoMessageVariant.INFO });
+            setInfoMessage({ message: "Sending preferences to backend...", variant: INFO_MESSAGE_VARIANT.INFO });
             await postPreferencesToAPI(accessToken, tags, (data) => {
                 data.matched_list = data.matched_list || undefined;
                 tripData.days[0].dayTags = data.matched_list;
             });
 
             // Stores data into session storage
-            setInfoMessage({ message: "Saving to session...", variant: InfoMessageVariant.INFO });
+            setInfoMessage({ message: "Saving to session...", variant: INFO_MESSAGE_VARIANT.INFO });
             window.sessionStorage.setItem("data", JSON.stringify(tripData));
-            setInfoMessage({ message: "Done.", variant: InfoMessageVariant.SUCCESS });
+            setInfoMessage({ message: "Done.", variant: INFO_MESSAGE_VARIANT.SUCCESS });
 
             // Go to trip page
             window.location.pathname = "/trip";
         } catch (error) {
             console.error(error);
-            setInfoMessage({ message: error.message, variant: InfoMessageVariant.ERROR });
+            setInfoMessage({ message: error.message, variant: INFO_MESSAGE_VARIANT.ERROR });
         }
     };
 
     const handleAddTag = () => {
         if (
-            (tagInput.length > 0 || tagInput.length < 80) &&
+            (tagInput.length > 0 || tagInput.length < 40) &&
             !tags.includes(tagInput.trim()) &&
             tagInput.trim().length > 0
         ) {
-            if (tags.length <= MAX_DESTINATIONS_PER_DAY) {
+            if (tags.length < MAX_DESTINATIONS_PER_DAY) {
                 setTags([...tags, tagInput.trim()]);
             } else {
-                setInfoMessage({ message: "Maximum number of tags reached.", variant: InfoMessageVariant.WARNING });
+                setInfoMessage({ message: "Maximum number of tags reached.", variant: INFO_MESSAGE_VARIANT.WARNING });
             }
         }
         setTagInput(""); // Clears TextField input
@@ -164,9 +164,7 @@ export default function CreateTrip() {
                             label="Tags"
                             name="tags"
                             value={tagInput}
-                            onChange={(e) => {
-                                setTagInput(e.target.value);
-                            }}
+                            onChange={(e) => setTagInput(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && tagInput.length > 0) {
                                     handleAddTag();
@@ -196,7 +194,7 @@ export default function CreateTrip() {
                         label="Use Previous Stops"
                     />
                     {infoMessage.message && <Alert severity={infoMessage.variant}>{infoMessage.message}</Alert>}
-                    {startingAddress ? (
+                    {startingAddress && tags.length > 0 ? (
                         <Button variant="contained" onClick={saveData}>
                             Create Trip
                         </Button>
