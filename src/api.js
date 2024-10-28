@@ -19,7 +19,7 @@ export async function getTestMessageFromAPI(accessToken, callback) {
 
 export async function postPreferencesToAPI(accessToken, preferencesList, callback) {
     try {
-        const response = await fetch(config.backend_endpoint + "/api/private/preferences_to_types", {
+        const response = await fetch(config.backend_endpoint + "/api/public/preferences_to_types", {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${accessToken}`,
