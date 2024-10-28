@@ -35,11 +35,6 @@ describe('API Tests', function () {
     // user (email) whose access token we are using
     const user = process.env.DAYSCAPE_TESTING_USER;
 
-    // console.log("token:\n");
-    // console.log(token);
-    // console.log("user:\n");
-    // console.log(user);
-
     const baseUrl = 'http://localhost:5556/api/private';
 
     var test_trip_id = ""
@@ -68,34 +63,75 @@ describe('API Tests', function () {
 	expect(response.status).to.equal(200);
 	// save trip ID for the following tests
 	test_trip_id = response.data
+	console.log("Created new test trip with id: ");
+	console.log(test_trip_id);
     });
 
     it('should update trip name', async function() {
-	const response = await axios.post(`${baseUrl}/save_trip?trip_name=Test new name&trip_id=` + test_trip_id, null, getAuthHeaders());
+	const response = await axios.post(`${baseUrl}/save_trip?trip_name=Updated test trip name&trip_id=` + test_trip_id, null, getAuthHeaders());
 	expect(response.status).to.equal(200);
     });
 
     it('should add viewers and editors', async function() {
-    const editors = ["editor1@example.com", "editor2@example.com"];
-    const viewers = ["viewer1@example.com", "viewer2@example.com"];
+	const editors = ["editor1@example.com", "editor2@example.com"];
+	// Normally frontend wouldn't allow you add your own email to
+	// either list, but this allows us to test
+	// get_shared_trips_list below
+	const viewers = ["viewer1@example.com", "nweconop@uncg.edu"];
 
-    const response = await axios.post(
-	`${baseUrl}/save_trip?trip_id=` + test_trip_id + "&view=" + viewers + "&edit=" + editors,
-	null,
-	getAuthHeaders()
-    );
-    expect(response.status).to.equal(200);
+	const response = await axios.post(
+	    `${baseUrl}/save_trip?trip_id=` + test_trip_id + "&view=" + viewers + "&edit=" + editors,
+	    null,
+	    getAuthHeaders()
+	);
+	expect(response.status).to.equal(200);
     });
 
-    it('should get the request', async function() {
-    const response = await axios.post(
-	`${baseUrl}/get_trip?trip_id=` + test_trip_id,
-	null,
-	getAuthHeaders()
-    );
+    it('should get the trip with the correct data', async function() {
+	const response = await axios.post(
+	    `${baseUrl}/get_trip?trip_id=` + test_trip_id,
+	    null,
+	    getAuthHeaders()
+	);
 	expect(response.status).to.equal(200);
 	const expected = { random_test_trip_data: 'random string' };
 	expect(response.data).to.deep.equal(expected);
+    });
+
+    it('should get list of owned trips', async function() {
+	const response = await axios.get(
+	    `${baseUrl}/get_owned_trips_list`,
+	    getAuthHeaders()
+	);
+	expect(response.status).to.equal(200);
+
+	// We can't check the full list, because we don't know which
+	// other trips will be there. So we just check that the trip
+	// we added is in the list
+	const expected_element = {
+	    name: 'Updated test trip name',
+	    uuid: test_trip_id
+	}
+	const found_element = response.data.find(item => item.uuid === test_trip_id);
+	expect(found_element).to.deep.equal(expected_element)
+    });
+
+
+    it('should get list of shared trips', async function() {
+	const response = await axios.get(
+	    `${baseUrl}/get_shared_trips_list`,
+	    getAuthHeaders()
+	);
+	expect(response.status).to.equal(200);
+	// We can't check the full list, because we don't know which
+	// other trips will be there. So we just check that the trip
+	// we added is in the list
+	const expected_element = {
+	    name: 'Updated test trip name',
+	    uuid: test_trip_id
+	}
+	const found_element = response.data.find(item => item.uuid === test_trip_id);
+	expect(found_element).to.deep.equal(expected_element)
     });
 
     // TODO: need tests here to get the editors and viewers for the
@@ -105,20 +141,20 @@ describe('API Tests', function () {
     const user_preferences = { random: Math.random().toString(36).substring(2), data: Math.random().toString(36).substring(2) };
 
     it('should save global user preferences', async function() {
-    const response = await axios.post(
-	`${baseUrl}/save_preferences`,
-	user_preferences,
-	getAuthHeaders()
-    );
+	const response = await axios.post(
+	    `${baseUrl}/save_preferences`,
+	    user_preferences,
+	    getAuthHeaders()
+	);
 	expect(response.status).to.equal(200);
 
     });
 
     it('should get global user preferences', async function() {
-    const response = await axios.get(
-	`${baseUrl}/get_preferences`,
-	getAuthHeaders()
-    );
+	const response = await axios.get(
+	    `${baseUrl}/get_preferences`,
+	    getAuthHeaders()
+	);
 	expect(response.status).to.equal(200);
 	expect(response.data).to.deep.equal(user_preferences);
     });
