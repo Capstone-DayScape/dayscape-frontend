@@ -32,10 +32,15 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
     const [usePrevStops, setUsePrevStops] = useState(false);
     const [infoMessage, setInfoMessage] = useState({ message: "", variant: "" });
 
-    const { getAccessTokenSilently } = useAuth0();
+    const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 
     const handleSave = async () => {
-        const accessToken = await getAccessTokenSilently();
+        let accessToken;
+        if (isAuthenticated) {
+            accessToken = await getAccessTokenSilently();
+        } else {
+            accessToken = null;
+        }
 
         try {
             setInfoMessage({ message: "Sending preferences to backend...", variant: INFO_MESSAGE_VARIANT.INFO });
@@ -50,7 +55,6 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
                 onSave(newDay); // Closes the dialog and saves the new day to the trip
             });
         } catch (error) {
-            console.error("Error sending preferences:", error.message);
             setInfoMessage({ message: "Error sending preferences to backend.", variant: INFO_MESSAGE_VARIANT.ERROR });
         }
 

@@ -59,7 +59,7 @@ export default function CreateTrip() {
     const [usePrevStops, setUsePrevStops] = React.useState(false);
     const [infoMessage, setInfoMessage] = React.useState({ message: "", variant: "" });
 
-    const { getAccessTokenSilently } = useAuth0();
+    const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 
     const autocompleteRef = React.useRef(null);
 
@@ -79,8 +79,13 @@ export default function CreateTrip() {
             tripData.days[0].usePreviousStops = usePrevStops;
             tripData.days[0].transportationMode = transportMode;
 
-            setInfoMessage({ message: "Getting access token...", variant: INFO_MESSAGE_VARIANT.INFO });
-            const accessToken = await getAccessTokenSilently();
+            let accessToken;
+            if (isAuthenticated) {
+                setInfoMessage({ message: "Getting access token...", variant: INFO_MESSAGE_VARIANT.INFO });
+                accessToken = await getAccessTokenSilently();
+            } else {
+                accessToken = null;
+            }
             setInfoMessage({ message: "Sending preferences to backend...", variant: INFO_MESSAGE_VARIANT.INFO });
             await postPreferencesToAPI(accessToken, tags, (data) => {
                 data.matched_list = data.matched_list || undefined;
@@ -95,7 +100,6 @@ export default function CreateTrip() {
             // Go to trip page
             window.location.pathname = "/trip";
         } catch (error) {
-            console.error(error);
             setInfoMessage({ message: error.message, variant: INFO_MESSAGE_VARIANT.ERROR });
         }
     };
