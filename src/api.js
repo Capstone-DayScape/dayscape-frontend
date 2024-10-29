@@ -17,6 +17,13 @@ export async function getTestMessageFromAPI(accessToken, callback) {
     }
 }
 
+/**
+ * Sends preferences (tags) to the backend. Responds with `{matched_list: string[]}`.
+ * @param {string|null} accessToken `null` if not authenticated
+ * @param {string[]} preferencesList List of tags
+ * @param {function} callback Callback on success
+ * @returns {Promise<void>} Promise to complete
+ */
 export async function postPreferencesToAPI(accessToken, preferencesList, callback) {
     try {
         if (accessToken) {
