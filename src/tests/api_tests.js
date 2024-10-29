@@ -77,7 +77,7 @@ describe('API Tests', function () {
 	// Normally frontend wouldn't allow you add your own email to
 	// either list, but this allows us to test
 	// get_shared_trips_list below
-	const viewers = ["viewer1@example.com", "nweconop@uncg.edu"];
+	const viewers = ["viewer1@example.com", user];
 
 	const response = await axios.post(
 	    `${baseUrl}/save_trip?trip_id=` + test_trip_id + "&view=" + viewers + "&edit=" + editors,
