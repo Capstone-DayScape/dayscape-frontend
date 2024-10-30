@@ -3,13 +3,58 @@ import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 import { Box, Typography, Card, CardContent, TextField, FormControl, Stack, Chip } from "@mui/material";
 import AddDayDialog from "./add-day-dialog"; // Import the AddDayDialog component
 import dayjs from "dayjs";
+import { useAuth0 } from "@auth0/auth0-react";
+import axios from 'axios';
+import config from "../config";
+
+var trip_id = "";
+
+const SaveTripButton = ({ tripData, tripName }) => {
+    const [icon, setIcon] = useState('💾');
+    const { getAccessTokenSilently } = useAuth0();
+
+    useEffect(() => {
+	// Reset the icon back to the floppy disk when tripData or
+	// tripName change
+	setIcon('💾');
+    }, [tripData, tripName]);
+
+    const handleSave = async () => {
+	try {
+	    const accessToken = await getAccessTokenSilently();
+	    const headers = {
+		Authorization: `Bearer ${accessToken}`,
+		"Content-Type": "application/json"
+	    };
+
+	    var response;
+	    if (trip_id) {
+		response = await axios.post(config.backend_endpoint +`/api/private/save_trip?trip_name=` + tripName + '&trip_id=' + trip_id, tripData, { headers });
+	    } else {
+		response = await axios.post(config.backend_endpoint +`/api/private/save_trip?trip_name=` + tripName, tripData, { headers });
+	    }
+
+	    if (response.status === 200) {
+		console.log("Saved trip with id: ", response.data);
+		setIcon('✅');
+		trip_id = response.data;
+	    }
+	} catch (error) {
+	    console.error("Error saving trip: ", error);
+	}
+    };
+
+    return (
+	<button onClick={handleSave}>{icon}</button>
+    );
+};
 
 const libraries = ["places", "marker"];
-const tripData = JSON.parse(window.sessionStorage.getItem("data"));
 const MIN_DESTINATIONS_PER_DAY = 3;
 export const MAX_DESTINATIONS_PER_DAY = 5;
 
 const Trip = () => {
+    const [tripData, setTripData] = useState(JSON.parse(window.sessionStorage.getItem("data")));
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [days, setDays] = useState([
         { placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }
@@ -19,6 +64,28 @@ const Trip = () => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
+    const [tripName, setTripName] = useState(tripData.name ? tripData.name : "Untitled Trip");
+    const [isEditingName, setIsEditingName] = useState(false); // Track if we're editing the name
+    // useEffect(() => {
+    // 	console.log("Trip Data:", tripData);
+    // 	console.log("Trip Name:", tripName);
+    // }, [tripData, tripName]);
+
+
+    const handleNameClick = () => {
+	// Enable name editing mode
+	setIsEditingName(true);
+    };
+
+    const handleNameChange = (e) => {
+	// Update trip name as user types
+	setTripName(e.target.value);
+    };
+
+    const handleNameBlur = () => {
+	// Disable editing mode and indicate the change
+	setIsEditingName(false);
+    };
 
     /**
      * Handles events after the Google Maps API has loaded.
@@ -361,15 +428,24 @@ const Trip = () => {
             placeResponses: []
         };
 
-        const newTripData = tripData;
-        newTripData.days.push({
-            index: newDayIndex,
+	// Need to reset tripData object so the saveButton detects a
+	// change
+	const newTripData = {
+	   ...tripData, // Copy other properties
+	   days: [
+	       ...tripData.days, // Copy existing days
+	       {
+		   index: days.length,
             dayTags: newDay.tags,
             routeStops: [],
             usePreviousStops: newDay.usePrevStops,
             transportationMode: newDay.transportMode
-        });
+	       }
+	   ]
+       };
+
         window.sessionStorage.setItem("data", JSON.stringify(newTripData));
+	setTripData(newTripData);
 
         fetchNearbyPlaces(mapCenter, newDayIndex, newDay.usePrevStops);
 
@@ -418,6 +494,23 @@ const Trip = () => {
             libraries={libraries}
             onLoad={handleLoad}>
             <Stack direction="column">
+		<Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
+		    {isEditingName ? (
+			<TextField
+			    variant="outlined"
+			    value={tripName}
+			    onChange={handleNameChange}
+			    onBlur={handleNameBlur} // Save the name when input loses focus
+			    autoFocus
+			/>
+		    ) : (
+			<Typography variant="h2" onClick={handleNameClick} style={{ cursor: "pointer" }}>
+			    {tripName}
+			</Typography>
+		    )}
+		    <SaveTripButton tripData={tripData} tripName={tripName} />
+
+		</Box>
                 <Box display="flex" alignItems="center" justifyContent="center" mb={4} mt={3}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
