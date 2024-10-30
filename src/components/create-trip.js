@@ -4,7 +4,6 @@ import {
     Box,
     Button,
     Checkbox,
-    Chip,
     FormControl,
     FormControlLabel,
     InputLabel,
@@ -20,7 +19,7 @@ import dayjs from "dayjs";
 import { LoadScript, Autocomplete } from "@react-google-maps/api";
 import { postPreferencesToAPI } from "../api";
 import { useAuth0 } from "@auth0/auth0-react";
-import { MAX_DESTINATIONS_PER_DAY } from "./trip"; // Determines the maximum number of destinations and tags per day
+import TagInput from "./tag-input"; // Determines the maximum number of destinations and tags per day
 
 const libraries = ["places"];
 export const INFO_MESSAGE_VARIANT = {
@@ -53,7 +52,6 @@ const tripData = {
 export default function CreateTrip() {
     const [dateObject, setDateObject] = React.useState(dayjs());
     const [startingAddress, setStartingAddress] = React.useState("");
-    const [tagInput, setTagInput] = React.useState("");
     const [tags, setTags] = React.useState([]);
     const [transportMode, setTransportMode] = React.useState("DRIVING");
     const [usePrevStops, setUsePrevStops] = React.useState(false);
@@ -104,21 +102,6 @@ export default function CreateTrip() {
         }
     };
 
-    const handleAddTag = () => {
-        if (
-            (tagInput.length > 0 || tagInput.length < 40) &&
-            !tags.includes(tagInput.trim()) &&
-            tagInput.trim().length > 0
-        ) {
-            if (tags.length < MAX_DESTINATIONS_PER_DAY) {
-                setTags([...tags, tagInput.trim()]);
-            } else {
-                setInfoMessage({ message: "Maximum number of tags reached.", variant: INFO_MESSAGE_VARIANT.WARNING });
-            }
-        }
-        setTagInput(""); // Clears TextField input
-    };
-
     return (
         <Box sx={{ width: 1 / 2, mx: "auto" }}>
             <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -163,34 +146,11 @@ export default function CreateTrip() {
                             <MenuItem value="WALKING">Walking</MenuItem>
                         </Select>
                     </FormControl>
-                    <Stack direction="row" spacing={2}>
-                        <TextField
-                            label="Tags"
-                            name="tags"
-                            value={tagInput}
-                            onChange={(e) => setTagInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && tagInput.length > 0) {
-                                    handleAddTag();
-                                }
-                            }}
-                            sx={{ width: 2 / 3 }}
-                        />
-                        <Button variant="outlined" onClick={handleAddTag} sx={{ width: 1 / 3 }}>
-                            Add Tag
-                        </Button>
-                    </Stack>
-                    {tags.length > 0 && (
-                        <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }} useFlexGap>
-                            {tags.map((tag, index) => (
-                                <Chip
-                                    label={tag}
-                                    key={index}
-                                    onDelete={() => setTags(tags.filter((tagStr) => tagStr !== tag))}
-                                />
-                            ))}
-                        </Stack>
-                    )}
+                    <TagInput
+                        onInfoMessage={(message) => setInfoMessage(message)}
+                        tagsValue={tags}
+                        onTagChange={(newTags) => setTags(newTags)}
+                    />
                     <FormControlLabel
                         control={
                             <Checkbox checked={usePrevStops} onChange={(e) => setUsePrevStops(e.target.checked)} />

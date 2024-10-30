@@ -167,6 +167,7 @@ const Trip = () => {
                             calculateRoute(location, newMarkers, dayIndex);
                         } catch (error) {
                             console.error(`newDestinations has undefined properties: ${error.message}`);
+                            console.log("These are the responses:", responses);
                         }
                     } else if (numTags > MAX_DESTINATIONS_PER_DAY) {
                         // Should not happen unless backend sends over MAX_DESTINATIONS_PER_DAY
