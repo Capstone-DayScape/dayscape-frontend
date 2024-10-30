@@ -128,8 +128,17 @@ const Trip = () => {
                     lng: point.lng()
                 }));
                 const times = result.routes[0].legs.map((leg) => leg.duration.text);
+                const optimizedOrder = result.routes[0].waypoint_order;
+    
+                // Reorder the markers based on the optimized order
+                const reorderedMarkers = optimizedOrder.map((index, i) => ({
+                    ...places[index],
+                    label: `${i + 2}` // Update the label to reflect the new order
+                }));
+    
                 setDays((prevDays) => {
                     const updatedDays = [...prevDays];
+                    updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
                     updatedDays[dayIndex].routePath = route;
                     updatedDays[dayIndex].travelTimes = times;
                     return updatedDays;
