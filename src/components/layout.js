@@ -30,14 +30,14 @@ const Layout = ({ children }) => {
                         </Link>
                     </Typography>
                     <Box sx={{ flexGrow: 1 }}>
-                        <Button color="inherit" href="/create-trip" endIcon={<EventIcon />}>
+                        <Button color="inherit" href="/create-trip" startIcon={<EventIcon />}>
                             Create Trip
                         </Button>
                     </Box>
                     {!isAuthenticated && (
                         <Button
                             color="inherit"
-                            endIcon={<LoginIcon />}
+                            startIcon={<LoginIcon />}
                             onClick={() => {
                                 loginWithRedirect().catch(() => console.error("Unable to redirect to login!"));
                             }}>
@@ -48,7 +48,7 @@ const Layout = ({ children }) => {
                         <>
                             <Button
                                 color="inherit"
-                                endIcon={<LogoutIcon />}
+                                startIcon={<LogoutIcon />}
                                 onClick={() => {
                                     logout({ logoutParams: { returnTo: window.location.origin } }).catch(() => {
                                         console.error("Unable to logout!");
@@ -56,8 +56,8 @@ const Layout = ({ children }) => {
                                 }}>
                                 Log Out
                             </Button>
-                            <Button color="inherit" href="/profile" endIcon={<AccountCircleIcon />}>
-                                Profile
+                            <Button color="inherit" href="/profile" startIcon={<AccountCircleIcon />}>
+                                Account
                             </Button>
                         </>
                     )}
