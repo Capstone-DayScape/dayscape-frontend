@@ -1,4 +1,4 @@
-import React from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import {
     Alert,
     Box,
@@ -15,19 +15,15 @@ import {
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { Autocomplete, LoadScript } from "@react-google-maps/api";
 import dayjs from "dayjs";
-import { LoadScript, Autocomplete } from "@react-google-maps/api";
-import { postPreferencesToAPI } from "../api";
-import { useAuth0 } from "@auth0/auth0-react";
+import React, { useEffect } from "react";
+import { getUserPreferences, translatePreferencesToTypes } from "../api";
+import { INFO_MESSAGE_VARIANT } from "./constants";
 import TagInput from "./tag-input"; // Determines the maximum number of destinations and tags per day
 
 const libraries = ["places"];
-export const INFO_MESSAGE_VARIANT = {
-    SUCCESS: "success",
-    INFO: "info",
-    WARNING: "warning",
-    ERROR: "error"
-};
+
 // JSON structure to store data
 const tripData = {
     startingDate: "",
@@ -61,6 +57,17 @@ export default function CreateTrip() {
 
     const autocompleteRef = React.useRef(null);
 
+    useEffect(() => {
+        const fetchData = async () => {
+            const accessToken = await getAccessTokenSilently();
+
+            await getUserPreferences(accessToken, (response) => {
+                setTags(response.data);
+            });
+        };
+        fetchData().catch((err) => console.error(err));
+    }, [getAccessTokenSilently]);
+
     const saveData = async () => {
         setInfoMessage({ message: "Retrieving form data...", variant: INFO_MESSAGE_VARIANT.INFO });
         try {
@@ -85,7 +92,7 @@ export default function CreateTrip() {
                 accessToken = null;
             }
             setInfoMessage({ message: "Sending preferences to backend...", variant: INFO_MESSAGE_VARIANT.INFO });
-            await postPreferencesToAPI(accessToken, tags, (data) => {
+            await translatePreferencesToTypes(accessToken, tags, (data) => {
                 data.matched_list = data.matched_list || undefined;
                 tripData.days[0].dayTags = data.matched_list;
             });
@@ -157,7 +164,13 @@ export default function CreateTrip() {
                         }
                         label="Use Previous Stops"
                     />
-                    {infoMessage.message && <Alert severity={infoMessage.variant}>{infoMessage.message}</Alert>}
+                    {infoMessage.message && (
+                        <Alert
+                            severity={infoMessage.variant}
+                            onClose={() => setInfoMessage({ message: "", variant: "" })}>
+                            {infoMessage.message}
+                        </Alert>
+                    )}
                     {startingAddress && tags.length > 0 ? (
                         <Button variant="contained" onClick={saveData}>
                             Create Trip

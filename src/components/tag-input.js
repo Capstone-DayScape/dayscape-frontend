@@ -1,7 +1,6 @@
 import { Button, Chip, Stack, TextField } from "@mui/material";
 import React from "react";
-import { MAX_DESTINATIONS_PER_DAY } from "./trip";
-import { INFO_MESSAGE_VARIANT } from "./create-trip";
+import { MAX_DESTINATIONS_PER_DAY, INFO_MESSAGE_VARIANT } from "./constants";
 
 /**
  * Creates an input for tags and displays them underneath as chips.

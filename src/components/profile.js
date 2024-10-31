@@ -1,32 +1,17 @@
 import { useAuth0 } from "@auth0/auth0-react";
+import { Alert, Box, Button, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
 import React, { useState, useEffect } from "react";
-import { getTestMessageFromAPI } from "../api.js";
-import { Box, Button, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
-import TagInput from "./tag-input";
+import { getTestMessage, getUserPreferences, saveUserPreferences, translatePreferencesToTypes } from "../api.js";
+import TagInput from "../components/tag-input";
+import { INFO_MESSAGE_VARIANT } from "./constants";
 
 export default function Profile() {
-    const { user, isLoading, getAccessTokenSilently } = useAuth0();
+    const { isLoading } = useAuth0();
 
-    const [data, setData] = useState(null);
     const [tabIndex, setTabIndex] = useState(0);
-    const [tags, setTags] = useState([]);
-    const [isTagChanged, setIsTagChanged] = useState(false);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            const accessToken = await getAccessTokenSilently();
-            await getTestMessageFromAPI(accessToken, (data) => setData(data));
-        };
-        fetchData().catch((err) => console.error(err));
-    }, [getAccessTokenSilently]);
 
     const handleChange = (event, newValue) => {
         setTabIndex(newValue);
-    };
-
-    const handleTagChange = (newTags) => {
-        setIsTagChanged(true);
-        setTags(newTags);
     };
 
     return (
@@ -42,41 +27,10 @@ export default function Profile() {
                             <Tab label="My Trips" sx={{ px: 3 }} />
                         </Tabs>
                     </Paper>
-                    <Paper sx={{ flexGrow: 1, height: 400 }} elevation={2}>
-                        {/* Profile Tab */}
-                        <CustomTabPanel value={tabIndex} index={0}>
-                            <Stack direction="row" spacing={2}>
-                                <img src={user.picture} alt={user.name} />
-                                <Stack direction="column">
-                                    <Typography variant="h5">{user.name}</Typography>
-                                    <Typography variant="h6">{user.email}</Typography>
-                                </Stack>
-                            </Stack>
-                            <Typography variant="p">{data?.message}</Typography>
-                        </CustomTabPanel>
-                        {/* My Tags Tab */}
-                        <CustomTabPanel value={tabIndex} index={1}>
-                            <Typography variant="h5">My Preferences</Typography>
-                            <TagInput
-                                onInfoMessage={(message) => console.log(message)}
-                                tagsValue={tags}
-                                onTagChange={handleTagChange}
-                            />
-                            <Button
-                                disabled={!isTagChanged}
-                                variant="contained"
-                                color="primary"
-                                onClick={() => {
-                                    console.log("Save tags: ", tags);
-                                    setIsTagChanged(false);
-                                }}>
-                                Save
-                            </Button>
-                        </CustomTabPanel>
-                        {/* My Trips Tab */}
-                        <CustomTabPanel value={tabIndex} index={2}>
-                            <Typography variant="h5">My Trips</Typography>
-                        </CustomTabPanel>
+                    <Paper sx={{ flexGrow: 1, height: 500 }} elevation={2}>
+                        <ProfileTab value={tabIndex} index={0} />
+                        <MyTagsTab value={tabIndex} index={1} />
+                        <MyTripsTab value={tabIndex} index={2} />
                     </Paper>
                 </Stack>
             )}
@@ -93,5 +47,106 @@ const CustomTabPanel = ({ children, value, index }) => {
                 </Stack>
             )}
         </Box>
+    );
+};
+
+const ProfileTab = ({ value, index }) => {
+    const [data, setData] = useState(null);
+
+    const { user, getAccessTokenSilently } = useAuth0();
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const accessToken = await getAccessTokenSilently();
+            await getTestMessage(accessToken, (data) => setData(data));
+        };
+        fetchData().catch((err) => console.error(err));
+    }, [getAccessTokenSilently]);
+
+    return (
+        <CustomTabPanel value={value} index={index}>
+            <Stack direction="row" spacing={2}>
+                <img src={user.picture} alt="User Profile" />
+                <Stack direction="column">
+                    <Typography variant="h5">{user.name}</Typography>
+                    <Typography variant="h6">{user.email}</Typography>
+                </Stack>
+            </Stack>
+            <Typography variant="p">{data?.message}</Typography>
+        </CustomTabPanel>
+    );
+};
+
+const MyTagsTab = ({ value, index }) => {
+    const [tags, setTags] = useState([]);
+    const [isTagChanged, setIsTagChanged] = useState(false);
+    const [infoMessage, setInfoMessage] = useState({ message: "", variant: "" });
+
+    const { getAccessTokenSilently } = useAuth0();
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const accessToken = await getAccessTokenSilently();
+
+            await getUserPreferences(accessToken, (response) => {
+                setTags(response.data);
+            });
+        };
+        fetchData().catch((err) => console.error(err));
+    }, [getAccessTokenSilently]);
+
+    const handleTagChange = (newTags) => {
+        setIsTagChanged(true);
+        setTags(newTags);
+    };
+
+    const handleSave = async () => {
+        const accessToken = await getAccessTokenSilently();
+        let typesList = [];
+
+        try {
+            await translatePreferencesToTypes(accessToken, tags, (response) => {
+                typesList = response.matched_list;
+                setTags(response.matched_list);
+            });
+            await saveUserPreferences(accessToken, typesList, (response) => {
+                console.log(response);
+            });
+            await getUserPreferences(accessToken, (response) => {
+                console.log(response);
+            });
+            setInfoMessage({ message: "Preferences saved successfully.", variant: INFO_MESSAGE_VARIANT.SUCCESS });
+        } catch (error) {
+            console.error(error);
+            setInfoMessage({ message: "Error saving preferences.", variant: INFO_MESSAGE_VARIANT.ERROR });
+        }
+        setIsTagChanged(false);
+    };
+
+    return (
+        <CustomTabPanel value={value} index={index}>
+            <Typography variant="h5">My Preferences</Typography>
+            <TagInput
+                onInfoMessage={(message) => setInfoMessage(message)}
+                tagsValue={tags}
+                onTagChange={handleTagChange}
+            />
+            {infoMessage.message && (
+                <Alert severity={infoMessage.variant} onClose={() => setInfoMessage({ variant: "", message: "" })}>
+                    {infoMessage.message}
+                </Alert>
+            )}
+            <Button disabled={!isTagChanged} variant="contained" color="primary" onClick={handleSave}>
+                Save
+            </Button>
+        </CustomTabPanel>
+    );
+};
+
+const MyTripsTab = ({ value, index }) => {
+    return (
+        <CustomTabPanel value={value} index={index}>
+            <Typography variant="h5">My Trips</Typography>
+        </CustomTabPanel>
     );
 };

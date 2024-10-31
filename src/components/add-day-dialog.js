@@ -1,26 +1,26 @@
-import React, { useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import {
+    Alert,
+    Button,
+    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
-    Button,
-    TextField,
     FormControl,
+    FormControlLabel,
     InputLabel,
     MenuItem,
     Select,
-    Checkbox,
-    FormControlLabel,
     Stack,
-    Alert
+    TextField
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
-import { INFO_MESSAGE_VARIANT } from "./create-trip";
-import { postPreferencesToAPI } from "../api";
-import { useAuth0 } from "@auth0/auth0-react";
+import React, { useEffect, useState } from "react";
+import { getUserPreferences, translatePreferencesToTypes } from "../api";
+import { INFO_MESSAGE_VARIANT } from "./constants";
 import TagInput from "./tag-input";
 
 const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate }) => {
@@ -32,6 +32,17 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
 
     const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 
+    useEffect(() => {
+        const fetchData = async () => {
+            const accessToken = await getAccessTokenSilently();
+
+            await getUserPreferences(accessToken, (response) => {
+                setTags(response.data);
+            });
+        };
+        fetchData().catch((err) => console.error(err));
+    }, [getAccessTokenSilently]);
+
     const handleSave = async () => {
         let accessToken;
         if (isAuthenticated) {
@@ -42,7 +53,7 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
 
         try {
             setInfoMessage({ message: "Sending preferences to backend...", variant: INFO_MESSAGE_VARIANT.INFO });
-            await postPreferencesToAPI(accessToken, tags, (data) => {
+            await translatePreferencesToTypes(accessToken, tags, (data) => {
                 const newDay = {
                     date: dateObject,
                     tags: data.matched_list,
@@ -98,7 +109,13 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
                         }
                         label="Use Previous Stops"
                     />
-                    {infoMessage.message && <Alert severity={infoMessage.variant}>{infoMessage.message}</Alert>}
+                    {infoMessage.message && (
+                        <Alert
+                            severity={infoMessage.variant}
+                            onClose={() => setInfoMessage({ variant: "", message: "" })}>
+                            {infoMessage.message}
+                        </Alert>
+                    )}
                 </Stack>
             </DialogContent>
             <DialogActions>
