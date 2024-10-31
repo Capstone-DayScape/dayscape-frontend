@@ -5,6 +5,12 @@ import { useAuth0 } from "@auth0/auth0-react";
 import axios from 'axios';
 import config from "../config";
 
+import React, { useState, useRef, useEffect } from "react";
+import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
+import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
+
+const libraries = ["places", "marker", "geometry"];
+
 var trip_id = "";
 
 const SaveTripButton = ({ tripData, tripName }) => {
@@ -46,17 +52,6 @@ const SaveTripButton = ({ tripData, tripName }) => {
 	<button onClick={handleSave}>{icon}</button>
     );
 };
-
-const libraries = ["places", "marker"];
-const MIN_DESTINATIONS_PER_DAY = 3;
-export const MAX_DESTINATIONS_PER_DAY = 5;
-import React, { useState, useRef, useEffect } from "react";
-import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
-import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
-
-const libraries = ["places", "marker", "geometry"];
-const tripData = JSON.parse(window.sessionStorage.getItem("data"));
-
 
 const Trip = () => {
     const [tripData, setTripData] = useState(JSON.parse(window.sessionStorage.getItem("data")));
