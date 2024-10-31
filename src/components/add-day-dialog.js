@@ -52,7 +52,7 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
         }
 
         try {
-            setInfoMessage({ message: "Sending preferences to backend...", variant: INFO_MESSAGE_VARIANT.INFO });
+            setInfoMessage({ message: "Translating preferences to types...", variant: INFO_MESSAGE_VARIANT.INFO });
             await translatePreferencesToTypes(accessToken, tags, (data) => {
                 const newDay = {
                     date: dateObject,

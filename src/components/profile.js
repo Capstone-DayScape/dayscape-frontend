@@ -105,17 +105,15 @@ const MyTagsTab = ({ value, index }) => {
         let typesList = [];
 
         try {
+            setInfoMessage({ message: "Translating preferences to types...", variant: INFO_MESSAGE_VARIANT.INFO });
             await translatePreferencesToTypes(accessToken, tags, (response) => {
                 typesList = response.matched_list;
                 setTags(response.matched_list);
             });
+            setInfoMessage({ message: "Saving preferences...", variant: INFO_MESSAGE_VARIANT.INFO });
             await saveUserPreferences(accessToken, typesList, (response) => {
-                console.log(response);
+                setInfoMessage({ message: response, variant: INFO_MESSAGE_VARIANT.SUCCESS });
             });
-            await getUserPreferences(accessToken, (response) => {
-                console.log(response);
-            });
-            setInfoMessage({ message: "Preferences saved successfully.", variant: INFO_MESSAGE_VARIANT.SUCCESS });
         } catch (error) {
             console.error(error);
             setInfoMessage({ message: "Error saving preferences.", variant: INFO_MESSAGE_VARIANT.ERROR });

@@ -69,7 +69,7 @@ export default function CreateTrip() {
     }, [getAccessTokenSilently]);
 
     const saveData = async () => {
-        setInfoMessage({ message: "Retrieving form data...", variant: INFO_MESSAGE_VARIANT.INFO });
+        setInfoMessage({ message: "Retrieving from data...", variant: INFO_MESSAGE_VARIANT.INFO });
         try {
             const place = autocompleteRef.current.getPlace();
 
@@ -91,7 +91,7 @@ export default function CreateTrip() {
             } else {
                 accessToken = null;
             }
-            setInfoMessage({ message: "Sending preferences to backend...", variant: INFO_MESSAGE_VARIANT.INFO });
+            setInfoMessage({ message: "Translating preferences to types...", variant: INFO_MESSAGE_VARIANT.INFO });
             await translatePreferencesToTypes(accessToken, tags, (data) => {
                 data.matched_list = data.matched_list || undefined;
                 tripData.days[0].dayTags = data.matched_list;
