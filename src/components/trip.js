@@ -89,10 +89,25 @@ const Trip = () => {
         const tags = tripData.days[dayIndex].dayTags;
         const responses = [];
 
+        // Adjust the search radius based on the selected transportation mode
+        const transportMode = tripData.days[dayIndex].transportationMode;
+        let radius;
+        switch (transportMode) {
+            case 'WALKING':
+                radius = 1000; // 1 km for walking
+                break;
+            case 'BICYCLING':
+                radius = 3000; // 3 km for bicycling
+                break;
+            default:
+                radius = 5000; // 5 km for other modes
+                break;
+        }
+
         tags.forEach((tag) => {
             const request = {
                 location,
-                radius: 5000,
+                radius,
                 type: tag,
                 rankBy: window.google.maps.places.RankBy.PROMINENCE
             };
@@ -164,7 +179,7 @@ const Trip = () => {
                                 };
                                 return updatedDays;
                             });
-                            calculateRoute(location, newMarkers, dayIndex);
+                            calculateRoute(location, newMarkers, dayIndex, transportMode);
                         } catch (error) {
                             console.error(`newDestinations has undefined properties: ${error.message}`);
                         }
@@ -228,8 +243,9 @@ const Trip = () => {
      * @param {{duration: {hours: number, minutes: number}, name: *, rating: *, position: {lng: *, lat: *}, label: string, info: *}[]} places
      * List of destinations
      * @param {number} dayIndex Current day index
+     * @param {string} transportationMode Mode of transportation
      */
-    const calculateRoute = (origin, places, dayIndex) => {
+    const calculateRoute = (origin, places, dayIndex, transportationMode) => {
         const directionsService = new window.google.maps.DirectionsService();
         const waypoints = places.map((place) => ({
             location: { lat: place.position.lat, lng: place.position.lng },
@@ -245,7 +261,7 @@ const Trip = () => {
             origin,
             destination: origin, // Set the destination to the origin to create a loop
             waypoints,
-            travelMode: window.google.maps.TravelMode.DRIVING,
+            travelMode: window.google.maps.TravelMode[transportationMode],
             optimizeWaypoints: true // Optimize the order of waypoints to form a circular route
         };
     
