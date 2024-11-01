@@ -1,14 +1,30 @@
-import { Box, Card, CardContent, Chip, FormControl, Stack, TextField, Typography } from "@mui/material";
+import { useAuth0 } from "@auth0/auth0-react";
+import CheckBoxOutlinedIcon from "@mui/icons-material/CheckBoxOutlined";
+import SaveIcon from "@mui/icons-material/Save";
+import {
+    Box,
+    Card,
+    CardContent,
+    Chip,
+    FormControl,
+    IconButton,
+    Stack,
+    TextField,
+    Tooltip,
+    Typography
+} from "@mui/material";
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 import dayjs from "dayjs";
 import React, { useState, useRef, useEffect } from "react";
+import { saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 
 const libraries = ["places", "marker", "geometry"];
 const tripData = JSON.parse(window.sessionStorage.getItem("data"));
+let tripID = "";
 
-const Trip = () => {
+export default function Trip() {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [days, setDays] = useState([
         { placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }
@@ -16,6 +32,8 @@ const Trip = () => {
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [tripName, setTripName] = useState(tripData.name ? tripData.name : "Untitled Trip");
+
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
 
@@ -235,12 +253,12 @@ const Trip = () => {
             location: { lat: place.position.lat, lng: place.position.lng },
             stopover: true
         }));
-    
+
         if (waypoints.length === 0) {
             console.warn("No waypoints found for the route.");
             return;
         }
-    
+
         const request = {
             origin,
             destination: origin, // Set the destination to the origin to create a loop
@@ -248,7 +266,7 @@ const Trip = () => {
             travelMode: window.google.maps.TravelMode.DRIVING,
             optimizeWaypoints: true // Optimize the order of waypoints to form a circular route
         };
-    
+
         directionsService
             .route(request, (result, status) => {
                 if (status === window.google.maps.DirectionsStatus.OK) {
@@ -257,17 +275,17 @@ const Trip = () => {
                         lng: point.lng()
                     }));
                     const times = result.routes[0].legs.map((leg) => leg.duration.text);
-                const optimizedOrder = result.routes[0].waypoint_order;
-    
-                // Reorder the markers based on the optimized order
-                const reorderedMarkers = optimizedOrder.map((index, i) => ({
-                    ...places[index],
-                    label: `${i + 2}` // Update the label to reflect the new order
-                }));
-    
+                    const optimizedOrder = result.routes[0].waypoint_order;
+
+                    // Reorder the markers based on the optimized order
+                    const reorderedMarkers = optimizedOrder.map((index, i) => ({
+                        ...places[index],
+                        label: `${i + 2}` // Update the label to reflect the new order
+                    }));
+
                     setDays((prevDays) => {
                         const updatedDays = [...prevDays];
-                    updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
+                        updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
                         updatedDays[dayIndex].routePath = route;
                         updatedDays[dayIndex].travelTimes = times;
                         return updatedDays;
@@ -396,12 +414,12 @@ const Trip = () => {
 
     useEffect(() => {
         const selectedDayRoutePath = days[selectedDayIndex]?.routePath;
-    
+
         // Function to render the polyline
         const renderPolyline = () => {
             // Remove the existing polylines from the map
             if (polylineRef.current) {
-                polylineRef.current.forEach(polyline => polyline.setMap(null));
+                polylineRef.current.forEach((polyline) => polyline.setMap(null));
                 polylineRef.current = [];
             }
 
@@ -409,7 +427,7 @@ const Trip = () => {
             if (selectedDayRoutePath && selectedDayRoutePath.length > 0 && mapRef.current) {
                 const path = selectedDayRoutePath;
                 const colors = generateGradientColors(path.length - 1);
-    
+
                 polylineRef.current = path.slice(0, -1).map((point, index) => {
                     const segment = new window.google.maps.Polyline({
                         path: [point, path[index + 1]],
@@ -424,11 +442,11 @@ const Trip = () => {
         };
 
         renderPolyline();
-    
+
         // Cleanup function to remove the polylines when dependencies change
         return () => {
             if (polylineRef.current) {
-                polylineRef.current.forEach(polyline => polyline.setMap(null));
+                polylineRef.current.forEach((polyline) => polyline.setMap(null));
                 polylineRef.current = [];
             }
         };
@@ -438,7 +456,7 @@ const Trip = () => {
         // Unselect any selected node when switching days
         setSelectedNode(null);
     }, [selectedDayIndex]); // Run only when selectedDayIndex changes
-    
+
     const generateGradientColors = (numColors) => {
         const colors = [];
         for (let i = 0; i < numColors; i++) {
@@ -446,7 +464,7 @@ const Trip = () => {
             colors.push(`hsl(${hue}, 100%, 50%)`); // Full saturation and 50% lightness
         }
         return colors;
-    };    
+    };
 
     return (
         <LoadScript
@@ -454,7 +472,11 @@ const Trip = () => {
             libraries={libraries}
             onLoad={handleLoad}>
             <Stack direction="column">
-                <Box display="flex" alignItems="center" justifyContent="center" mb={4} mt={3}>
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mt: 2 }}>
+                    <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
+                    <SaveTripButton tripData={tripData} tripName={tripName} />
+                </Stack>
+                <Box display="flex" alignItems="center" justifyContent="center" mb={4} mt={2}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
                             <React.Fragment key={index}>
@@ -684,6 +706,60 @@ const Trip = () => {
             />
         </LoadScript>
     );
+}
+
+const TripTitle = ({ tripName, onTripNameChange }) => {
+    const [isEditing, setIsEditing] = useState(false);
+
+    return (
+        <>
+            {isEditing ? (
+                <TextField
+                    variant="outlined"
+                    value={tripName}
+                    onChange={(event) => onTripNameChange(event.target.value)}
+                    onBlur={() => setIsEditing(false)}
+                    autoFocus
+                />
+            ) : (
+                <Typography variant="h3" onClick={() => setIsEditing(true)}>
+                    {tripName}
+                </Typography>
+            )}
+        </>
+    );
 };
 
-export default Trip;
+const SaveTripButton = ({ tripData, tripName }) => {
+    const [icon, setIcon] = useState(<SaveIcon />);
+
+    const { getAccessTokenSilently } = useAuth0();
+
+    useEffect(() => {
+        setIcon(<SaveIcon />);
+    }, [tripData, tripName]);
+
+    const handleSave = async () => {
+        const accessToken = await getAccessTokenSilently();
+
+        const tripInfo = {
+            data: tripData,
+            name: tripName,
+            id: tripID
+        };
+
+        await saveTrip(accessToken, tripInfo, (tripIDResponse) => {
+            console.log(`Trip saved successfully! ID: ${tripIDResponse}`);
+            tripID = tripIDResponse;
+            setIcon(<CheckBoxOutlinedIcon color="success" />);
+        });
+    };
+
+    return (
+        <Tooltip title="Save Trip">
+            <IconButton variant="outlined" onClick={handleSave}>
+                {icon}
+            </IconButton>
+        </Tooltip>
+    );
+};
