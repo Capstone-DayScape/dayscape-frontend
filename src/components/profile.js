@@ -4,6 +4,10 @@ import React, { useState, useEffect } from "react";
 import { getTestMessage, getUserPreferences, saveUserPreferences, translatePreferencesToTypes } from "../api.js";
 import TagInput from "../components/tag-input";
 import { INFO_MESSAGE_VARIANT } from "./constants";
+import EditIcon from '@mui/icons-material/Edit';
+
+import config from "../config";
+import axios from "axios";
 
 export default function Profile() {
     const { isLoading } = useAuth0();
@@ -142,9 +146,99 @@ const MyTagsTab = ({ value, index }) => {
 };
 
 const MyTripsTab = ({ value, index }) => {
+    const [ownedTrips, setOwnedTrips] = useState([]);
+    const [sharedTrips, setSharedTrips] = useState([]);
+    const { getAccessTokenSilently } = useAuth0();
+
+    useEffect(() => {
+        const fetchTrips = async () => {
+            const accessToken = await getAccessTokenSilently();
+
+            try {
+                const ownedResponse = await axios.get(config.backend_endpoint + "/api/private/get_owned_trips_list", {
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                });
+                if(ownedResponse.status === 200) {
+                    setOwnedTrips(ownedResponse.data);
+                }
+            } catch (error) {
+                console.error("Error fetching owned trips:", error);
+            }
+
+            try {
+                const sharedResponse = await axios.get(config.backend_endpoint + "/api/private/get_shared_trips_list", {
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                });
+                if(sharedResponse.status === 200) {
+                    setSharedTrips(sharedResponse.data);
+                }
+            } catch (error) {
+                console.error("Error fetching shared trips:", error);
+            }
+        };
+
+        fetchTrips().catch((err) => console.error("Error in fetching trips:", err));
+    }, [getAccessTokenSilently]);
+
+    const handleEditTrip = async (tripId, tripName) => {
+        const accessToken = await getAccessTokenSilently();
+        try {
+            const response = await axios.post(
+                `${config.backend_endpoint}/api/private/get_trip?trip_id=` + tripId,
+		null,
+                {
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                }
+            );
+            if (response.status === 200) {
+                const tripData = response.data;
+                localStorage.setItem("trip_id", tripId);
+                localStorage.setItem("trip_name", tripName);
+                localStorage.setItem("trip_data", JSON.stringify(tripData));
+                window.location.href = "/trip"; // Redirect to the trip page
+            }
+        } catch (error) {
+            console.error("Error fetching trip data: ", error);
+        }
+    };
+
     return (
         <CustomTabPanel value={value} index={index}>
             <Typography variant="h5">My Trips</Typography>
+            <Box>
+                <Typography variant="h6">Owned by me</Typography>
+                {ownedTrips.length > 0 ? (
+                    <ul>
+                        {ownedTrips.map((trip) => (
+                            <li key={trip.uuid}>
+                                {trip.name}
+                                <Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}>
+                                    Edit
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <Typography>No owned trips available.</Typography>
+                )}
+            </Box>
+            <Box>
+                <Typography variant="h6">Shared with me</Typography>
+                {sharedTrips.length > 0 ? (
+                    <ul>
+                        {sharedTrips.map((trip) => (
+                            <li key={trip.uuid}>
+                                {trip.name}
+                                <Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}>
+                                    Edit
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <Typography>No shared trips available.</Typography>
+                )}
+            </Box>
         </CustomTabPanel>
     );
 };
