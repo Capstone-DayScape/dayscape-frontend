@@ -1,13 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
+import { Box, Card, CardContent, Chip, FormControl, Stack, TextField, Typography } from "@mui/material";
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
-import { Box, Typography, Card, CardContent, TextField, FormControl, Stack, Chip } from "@mui/material";
-import AddDayDialog from "./add-day-dialog"; // Import the AddDayDialog component
 import dayjs from "dayjs";
+import React, { useState, useRef, useEffect } from "react";
+import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
+import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 
 const libraries = ["places", "marker", "geometry"];
 const tripData = JSON.parse(window.sessionStorage.getItem("data"));
-const MIN_DESTINATIONS_PER_DAY = 3;
-export const MAX_DESTINATIONS_PER_DAY = 5;
 
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
@@ -182,6 +181,7 @@ const Trip = () => {
                             calculateRoute(location, newMarkers, dayIndex, transportMode);
                         } catch (error) {
                             console.error(`newDestinations has undefined properties: ${error.message}`);
+                            console.log("These are the responses:", responses);
                         }
                     } else if (numTags > MAX_DESTINATIONS_PER_DAY) {
                         // Should not happen unless backend sends over MAX_DESTINATIONS_PER_DAY

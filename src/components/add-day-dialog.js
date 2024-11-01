@@ -1,38 +1,47 @@
-import React, { useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import {
+    Alert,
+    Button,
+    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
-    Button,
-    TextField,
     FormControl,
+    FormControlLabel,
     InputLabel,
     MenuItem,
     Select,
-    Checkbox,
-    FormControlLabel,
     Stack,
-    Chip,
-    Alert
+    TextField
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
-import { MAX_DESTINATIONS_PER_DAY } from "./trip";
-import { INFO_MESSAGE_VARIANT } from "./create-trip";
-import { postPreferencesToAPI } from "../api";
-import { useAuth0 } from "@auth0/auth0-react";
+import React, { useEffect, useState } from "react";
+import { getUserPreferences, translatePreferencesToTypes } from "../api";
+import { INFO_MESSAGE_VARIANT } from "./constants";
+import TagInput from "./tag-input";
 
 const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate }) => {
     const [dateObject, setDateObject] = useState(dayjs(previousDayDate).add(1, "day"));
-    const [tagInput, setTagInput] = useState("");
     const [tags, setTags] = useState([]);
     const [transportMode, setTransportMode] = useState("DRIVING");
     const [usePrevStops, setUsePrevStops] = useState(false);
     const [infoMessage, setInfoMessage] = useState({ message: "", variant: "" });
 
     const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const accessToken = await getAccessTokenSilently();
+
+            await getUserPreferences(accessToken, (response) => {
+                setTags(response.data);
+            });
+        };
+        fetchData().catch((err) => console.error(err));
+    }, [getAccessTokenSilently]);
 
     const handleSave = async () => {
         let accessToken;
@@ -43,8 +52,8 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
         }
 
         try {
-            setInfoMessage({ message: "Sending preferences to backend...", variant: INFO_MESSAGE_VARIANT.INFO });
-            await postPreferencesToAPI(accessToken, tags, (data) => {
+            setInfoMessage({ message: "Translating preferences to types...", variant: INFO_MESSAGE_VARIANT.INFO });
+            await translatePreferencesToTypes(accessToken, tags, (data) => {
                 const newDay = {
                     date: dateObject,
                     tags: data.matched_list,
@@ -64,21 +73,6 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
         setUsePrevStops(false);
         setInfoMessage({ message: "", variant: "" });
         setDateObject((prev) => prev.add(1, "day"));
-    };
-
-    const handleAddTag = () => {
-        if (
-            (tagInput.length > 0 || tagInput.length < 40) &&
-            !tags.includes(tagInput.trim()) &&
-            tagInput.trim().length > 0
-        ) {
-            if (tags.length < MAX_DESTINATIONS_PER_DAY) {
-                setTags([...tags, tagInput.trim()]);
-            } else {
-                setInfoMessage({ message: "Maximum number of tags reached.", variant: INFO_MESSAGE_VARIANT.WARNING });
-            }
-        }
-        setTagInput(""); // Clears TextField input
     };
 
     return (
@@ -104,40 +98,24 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
                             <MenuItem value="WALKING">Walking</MenuItem>
                         </Select>
                     </FormControl>
-                    <Stack direction="row" spacing={2}>
-                        <TextField
-                            label="Tags"
-                            value={tagInput}
-                            onChange={(e) => setTagInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && tagInput.length > 0) {
-                                    handleAddTag();
-                                }
-                            }}
-                            sx={{ flex: 1 }} // Set the width to take up available space
-                        />
-                        <Button variant="outlined" onClick={handleAddTag}>
-                            Add Tag
-                        </Button>
-                    </Stack>
-                    {tags.length > 0 && (
-                        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
-                            {tags.map((tag, index) => (
-                                <Chip
-                                    label={tag}
-                                    key={index}
-                                    onDelete={() => setTags(tags.filter((tagStr) => tagStr !== tag))}
-                                />
-                            ))}
-                        </Stack>
-                    )}
+                    <TagInput
+                        onInfoMessage={(message) => setInfoMessage(message)}
+                        tagsValue={tags}
+                        onTagChange={(newTags) => setTags(newTags)}
+                    />
                     <FormControlLabel
                         control={
                             <Checkbox checked={usePrevStops} onChange={(e) => setUsePrevStops(e.target.checked)} />
                         }
                         label="Use Previous Stops"
                     />
-                    {infoMessage.message && <Alert severity={infoMessage.variant}>{infoMessage.message}</Alert>}
+                    {infoMessage.message && (
+                        <Alert
+                            severity={infoMessage.variant}
+                            onClose={() => setInfoMessage({ variant: "", message: "" })}>
+                            {infoMessage.message}
+                        </Alert>
+                    )}
                 </Stack>
             </DialogContent>
             <DialogActions>

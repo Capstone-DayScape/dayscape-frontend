@@ -1,10 +1,9 @@
-import React from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import {
     Alert,
     Box,
     Button,
     Checkbox,
-    Chip,
     FormControl,
     FormControlLabel,
     InputLabel,
@@ -16,19 +15,15 @@ import {
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { Autocomplete, LoadScript } from "@react-google-maps/api";
 import dayjs from "dayjs";
-import { LoadScript, Autocomplete } from "@react-google-maps/api";
-import { postPreferencesToAPI } from "../api";
-import { useAuth0 } from "@auth0/auth0-react";
-import { MAX_DESTINATIONS_PER_DAY } from "./trip"; // Determines the maximum number of destinations and tags per day
+import React, { useEffect } from "react";
+import { getUserPreferences, translatePreferencesToTypes } from "../api";
+import { INFO_MESSAGE_VARIANT } from "./constants";
+import TagInput from "./tag-input"; // Determines the maximum number of destinations and tags per day
 
 const libraries = ["places"];
-export const INFO_MESSAGE_VARIANT = {
-    SUCCESS: "success",
-    INFO: "info",
-    WARNING: "warning",
-    ERROR: "error"
-};
+
 // JSON structure to store data
 const tripData = {
     startingDate: "",
@@ -53,7 +48,6 @@ const tripData = {
 export default function CreateTrip() {
     const [dateObject, setDateObject] = React.useState(dayjs());
     const [startingAddress, setStartingAddress] = React.useState("");
-    const [tagInput, setTagInput] = React.useState("");
     const [tags, setTags] = React.useState([]);
     const [transportMode, setTransportMode] = React.useState("DRIVING");
     const [usePrevStops, setUsePrevStops] = React.useState(false);
@@ -63,8 +57,19 @@ export default function CreateTrip() {
 
     const autocompleteRef = React.useRef(null);
 
+    useEffect(() => {
+        const fetchData = async () => {
+            const accessToken = await getAccessTokenSilently();
+
+            await getUserPreferences(accessToken, (response) => {
+                setTags(response.data);
+            });
+        };
+        fetchData().catch((err) => console.error(err));
+    }, [getAccessTokenSilently]);
+
     const saveData = async () => {
-        setInfoMessage({ message: "Retrieving form data...", variant: INFO_MESSAGE_VARIANT.INFO });
+        setInfoMessage({ message: "Retrieving from data...", variant: INFO_MESSAGE_VARIANT.INFO });
         try {
             const place = autocompleteRef.current.getPlace();
 
@@ -86,8 +91,8 @@ export default function CreateTrip() {
             } else {
                 accessToken = null;
             }
-            setInfoMessage({ message: "Sending preferences to backend...", variant: INFO_MESSAGE_VARIANT.INFO });
-            await postPreferencesToAPI(accessToken, tags, (data) => {
+            setInfoMessage({ message: "Translating preferences to types...", variant: INFO_MESSAGE_VARIANT.INFO });
+            await translatePreferencesToTypes(accessToken, tags, (data) => {
                 data.matched_list = data.matched_list || undefined;
                 tripData.days[0].dayTags = data.matched_list;
             });
@@ -102,21 +107,6 @@ export default function CreateTrip() {
         } catch (error) {
             setInfoMessage({ message: error.message, variant: INFO_MESSAGE_VARIANT.ERROR });
         }
-    };
-
-    const handleAddTag = () => {
-        if (
-            (tagInput.length > 0 || tagInput.length < 40) &&
-            !tags.includes(tagInput.trim()) &&
-            tagInput.trim().length > 0
-        ) {
-            if (tags.length < MAX_DESTINATIONS_PER_DAY) {
-                setTags([...tags, tagInput.trim()]);
-            } else {
-                setInfoMessage({ message: "Maximum number of tags reached.", variant: INFO_MESSAGE_VARIANT.WARNING });
-            }
-        }
-        setTagInput(""); // Clears TextField input
     };
 
     return (
@@ -163,41 +153,24 @@ export default function CreateTrip() {
                             <MenuItem value="WALKING">Walking</MenuItem>
                         </Select>
                     </FormControl>
-                    <Stack direction="row" spacing={2}>
-                        <TextField
-                            label="Tags"
-                            name="tags"
-                            value={tagInput}
-                            onChange={(e) => setTagInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && tagInput.length > 0) {
-                                    handleAddTag();
-                                }
-                            }}
-                            sx={{ width: 2 / 3 }}
-                        />
-                        <Button variant="outlined" onClick={handleAddTag} sx={{ width: 1 / 3 }}>
-                            Add Tag
-                        </Button>
-                    </Stack>
-                    {tags.length > 0 && (
-                        <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }} useFlexGap>
-                            {tags.map((tag, index) => (
-                                <Chip
-                                    label={tag}
-                                    key={index}
-                                    onDelete={() => setTags(tags.filter((tagStr) => tagStr !== tag))}
-                                />
-                            ))}
-                        </Stack>
-                    )}
+                    <TagInput
+                        onInfoMessage={(message) => setInfoMessage(message)}
+                        tagsValue={tags}
+                        onTagChange={(newTags) => setTags(newTags)}
+                    />
                     <FormControlLabel
                         control={
                             <Checkbox checked={usePrevStops} onChange={(e) => setUsePrevStops(e.target.checked)} />
                         }
                         label="Use Previous Stops"
                     />
-                    {infoMessage.message && <Alert severity={infoMessage.variant}>{infoMessage.message}</Alert>}
+                    {infoMessage.message && (
+                        <Alert
+                            severity={infoMessage.variant}
+                            onClose={() => setInfoMessage({ message: "", variant: "" })}>
+                            {infoMessage.message}
+                        </Alert>
+                    )}
                     {startingAddress && tags.length > 0 ? (
                         <Button variant="contained" onClick={saveData}>
                             Create Trip
