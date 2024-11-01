@@ -26,7 +26,7 @@ import TagInput from "./tag-input";
 const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate }) => {
     const [dateObject, setDateObject] = useState(dayjs(previousDayDate).add(1, "day"));
     const [tags, setTags] = useState([]);
-    const [transportMode, setTransportMode] = useState("DRIVING");
+    const [transportMode, setTransportMode] = useState("DRIVING"); // Default to DRIVING
     const [usePrevStops, setUsePrevStops] = useState(false);
     const [infoMessage, setInfoMessage] = useState({ message: "", variant: "" });
 
@@ -93,7 +93,7 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
                             value={transportMode}
                             onChange={(event) => setTransportMode(event.target.value)}>
                             <MenuItem value="DRIVING">Driving</MenuItem>
-                            <MenuItem value="TRANSIT">Transit</MenuItem>
+                            {/* <MenuItem value="TRANSIT">Transit</MenuItem> */}
                             <MenuItem value="BICYCLING">Bicycling</MenuItem>
                             <MenuItem value="WALKING">Walking</MenuItem>
                         </Select>
