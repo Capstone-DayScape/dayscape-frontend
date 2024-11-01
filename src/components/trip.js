@@ -92,15 +92,20 @@ const Trip = () => {
         const transportMode = tripData.days[dayIndex].transportationMode;
         let radius;
         switch (transportMode) {
-            case 'WALKING':
-                radius = 1000; // 1 km for walking
+            case "DRIVING":
+                radius = 5000;
                 break;
-            case 'BICYCLING':
-                radius = 3000; // 3 km for bicycling
+            case "WALKING":
+                radius = 1000;
+                break;
+            case "BICYCLING":
+                radius = 2000;
+                break;
+            case "TRANSIT":
+                radius = 3000;
                 break;
             default:
-                radius = 5000; // 5 km for other modes
-                break;
+                radius = 1500;
         }
 
         tags.forEach((tag) => {
@@ -225,7 +230,7 @@ const Trip = () => {
                                 };
                                 return updatedDays;
                             });
-                            calculateRoute(location, newMarkers, dayIndex);
+                            calculateRoute(location, newMarkers, dayIndex, transportMode);
                         } catch (error) {
                             console.error(`newDestinations has undefined properties: ${error.message}`);
                         }
@@ -243,9 +248,9 @@ const Trip = () => {
      * @param {{duration: {hours: number, minutes: number}, name: *, rating: *, position: {lng: *, lat: *}, label: string, info: *}[]} places
      * List of destinations
      * @param {number} dayIndex Current day index
-     * @param {string} transportationMode Mode of transportation
+     * @param {string} transportMode Mode of transportation
      */
-    const calculateRoute = (origin, places, dayIndex, transportationMode) => {
+    const calculateRoute = (origin, places, dayIndex, transportMode) => {
         const directionsService = new window.google.maps.DirectionsService();
         const waypoints = places.map((place) => ({
             location: { lat: place.position.lat, lng: place.position.lng },
@@ -256,12 +261,12 @@ const Trip = () => {
             console.warn("No waypoints found for the route.");
             return;
         }
-    
+
         const request = {
             origin,
             destination: origin, // Set the destination to the origin to create a loop
             waypoints,
-            travelMode: window.google.maps.TravelMode[transportationMode],
+            travelMode: window.google.maps.TravelMode[transportMode],
             optimizeWaypoints: true // Optimize the order of waypoints to form a circular route
         };
     
@@ -273,17 +278,17 @@ const Trip = () => {
                         lng: point.lng()
                     }));
                     const times = result.routes[0].legs.map((leg) => leg.duration.text);
-                const optimizedOrder = result.routes[0].waypoint_order;
+                    const optimizedOrder = result.routes[0].waypoint_order;
     
-                // Reorder the markers based on the optimized order
-                const reorderedMarkers = optimizedOrder.map((index, i) => ({
-                    ...places[index],
-                    label: `${i + 2}` // Update the label to reflect the new order
-                }));
+                    // Reorder the markers based on the optimized order
+                    const reorderedMarkers = optimizedOrder.map((index, i) => ({
+                        ...places[index],
+                        label: `${i + 2}` // Update the label to reflect the new order
+                    }));
     
                     setDays((prevDays) => {
                         const updatedDays = [...prevDays];
-                    updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
+                        updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
                         updatedDays[dayIndex].routePath = route;
                         updatedDays[dayIndex].travelTimes = times;
                         return updatedDays;
