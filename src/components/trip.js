@@ -1,4 +1,8 @@
 import { Box, Card, CardContent, Chip, FormControl, Stack, TextField, Typography } from "@mui/material";
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import DirectionsBikeIcon from '@mui/icons-material/DirectionsBike';
+import DirectionsTransitIcon from '@mui/icons-material/DirectionsTransit';
+import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 import dayjs from "dayjs";
 import React, { useState, useRef, useEffect } from "react";
@@ -88,10 +92,30 @@ const Trip = () => {
         const tags = tripData.days[dayIndex].dayTags;
         const responses = [];
 
+        // Adjust the search radius based on the selected transportation mode
+        const transportMode = tripData.days[dayIndex].transportationMode;
+        let radius;
+        switch (transportMode) {
+            case "DRIVING":
+                radius = 5000;
+                break;
+            case "WALKING":
+                radius = 1000;
+                break;
+            case "BICYCLING":
+                radius = 2000;
+                break;
+            case "TRANSIT":
+                radius = 3000;
+                break;
+            default:
+                radius = 1500;
+        }
+
         tags.forEach((tag) => {
             const request = {
                 location,
-                radius: 5000,
+                radius,
                 type: tag,
                 rankBy: window.google.maps.places.RankBy.PROMINENCE
             };
@@ -163,7 +187,7 @@ const Trip = () => {
                                 };
                                 return updatedDays;
                             });
-                            calculateRoute(location, newMarkers, dayIndex);
+                            calculateRoute(location, newMarkers, dayIndex, transportMode);
                         } catch (error) {
                             console.error(`newDestinations has undefined properties: ${error.message}`);
                             console.log("These are the responses:", responses);
@@ -210,7 +234,7 @@ const Trip = () => {
                                 };
                                 return updatedDays;
                             });
-                            calculateRoute(location, newMarkers, dayIndex);
+                            calculateRoute(location, newMarkers, dayIndex, transportMode);
                         } catch (error) {
                             console.error(`newDestinations has undefined properties: ${error.message}`);
                         }
@@ -228,8 +252,9 @@ const Trip = () => {
      * @param {{duration: {hours: number, minutes: number}, name: *, rating: *, position: {lng: *, lat: *}, label: string, info: *}[]} places
      * List of destinations
      * @param {number} dayIndex Current day index
+     * @param {string} transportMode Mode of transportation
      */
-    const calculateRoute = (origin, places, dayIndex) => {
+    const calculateRoute = (origin, places, dayIndex, transportMode) => {
         const directionsService = new window.google.maps.DirectionsService();
         const waypoints = places.map((place) => ({
             location: { lat: place.position.lat, lng: place.position.lng },
@@ -240,12 +265,12 @@ const Trip = () => {
             console.warn("No waypoints found for the route.");
             return;
         }
-    
+
         const request = {
             origin,
             destination: origin, // Set the destination to the origin to create a loop
             waypoints,
-            travelMode: window.google.maps.TravelMode.DRIVING,
+            travelMode: window.google.maps.TravelMode[transportMode],
             optimizeWaypoints: true // Optimize the order of waypoints to form a circular route
         };
     
@@ -257,17 +282,17 @@ const Trip = () => {
                         lng: point.lng()
                     }));
                     const times = result.routes[0].legs.map((leg) => leg.duration.text);
-                const optimizedOrder = result.routes[0].waypoint_order;
+                    const optimizedOrder = result.routes[0].waypoint_order;
     
-                // Reorder the markers based on the optimized order
-                const reorderedMarkers = optimizedOrder.map((index, i) => ({
-                    ...places[index],
-                    label: `${i + 2}` // Update the label to reflect the new order
-                }));
+                    // Reorder the markers based on the optimized order
+                    const reorderedMarkers = optimizedOrder.map((index, i) => ({
+                        ...places[index],
+                        label: `${i + 2}` // Update the label to reflect the new order
+                    }));
     
                     setDays((prevDays) => {
                         const updatedDays = [...prevDays];
-                    updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
+                        updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
                         updatedDays[dayIndex].routePath = route;
                         updatedDays[dayIndex].travelTimes = times;
                         return updatedDays;
@@ -346,6 +371,22 @@ const Trip = () => {
 
     const handleAddDay = () => {
         setIsDialogOpen(true);
+    };
+
+    const getTransportIcon = (mode) => {
+        const iconProps = { sx: { color: "#666666" } }; // Set the color here
+        switch (mode) {
+            case "DRIVING":
+                return <DirectionsCarIcon {...iconProps} />;
+            case "WALKING":
+                return <DirectionsWalkIcon {...iconProps} />;
+            case "BICYCLING":
+                return <DirectionsBikeIcon {...iconProps} />;
+            case "TRANSIT":
+                return <DirectionsTransitIcon {...iconProps} />;
+            default:
+                return null;
+        }
     };
 
     /**
@@ -540,14 +581,14 @@ const Trip = () => {
                                             borderRadius="16px"
                                             padding="10px"
                                             width="100%"
-                                            minWidth="250px"
-                                            minHeight="50px"
+                                            minWidth="265px"
+                                            minHeight="65px"
                                             textAlign="center"
                                             boxShadow={3}>
                                             <Typography variant="h6">{marker.name}</Typography>
                                         </Box>
                                         {index < days[selectedDayIndex].markers.length - 1 && (
-                                            <Box display="flex" alignItems="center">
+                                            <Box ml={3} display="flex" alignItems="center">
                                                 <Box
                                                     position="relative"
                                                     width="2px"
@@ -567,9 +608,22 @@ const Trip = () => {
                                                         }
                                                     }}
                                                 />
-                                                <Typography variant="body2" ml={2} color="#686879">
-                                                    {days[selectedDayIndex].travelTimes[index]}
-                                                </Typography>
+                                                <Box display="flex" alignItems="center" ml={2}>
+                                                    {getTransportIcon(tripData.days[selectedDayIndex].transportationMode)}
+                                                    <Typography
+                                                        variant="body2"
+                                                        ml={1}
+                                                        color="#686879"
+                                                        sx={{
+                                                            width: '100px', // Set a fixed width
+                                                            whiteSpace: 'nowrap', // Prevent text from wrapping
+                                                            overflow: 'hidden', // Hide overflow text
+                                                            textOverflow: 'ellipsis' // Add ellipsis for overflow text
+                                                        }}
+                                                    >
+                                                        {days[selectedDayIndex].travelTimes[index]}
+                                                    </Typography>
+                                                </Box>
                                             </Box>
                                         )}
                                     </Box>

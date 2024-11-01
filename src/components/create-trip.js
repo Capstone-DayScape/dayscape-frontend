@@ -49,7 +49,7 @@ export default function CreateTrip() {
     const [dateObject, setDateObject] = React.useState(dayjs());
     const [startingAddress, setStartingAddress] = React.useState("");
     const [tags, setTags] = React.useState([]);
-    const [transportMode, setTransportMode] = React.useState("DRIVING");
+    const [transportMode, setTransportMode] = React.useState("DRIVING"); // Default to DRIVING
     const [usePrevStops, setUsePrevStops] = React.useState(false);
     const [infoMessage, setInfoMessage] = React.useState({ message: "", variant: "" });
 
@@ -148,7 +148,7 @@ export default function CreateTrip() {
                             value={transportMode}
                             onChange={(event) => setTransportMode(event.target.value)}>
                             <MenuItem value="DRIVING">Driving</MenuItem>
-                            <MenuItem value="TRANSIT">Transit</MenuItem>
+                            {/* <MenuItem value="TRANSIT">Transit</MenuItem> */}
                             <MenuItem value="BICYCLING">Bicycling</MenuItem>
                             <MenuItem value="WALKING">Walking</MenuItem>
                         </Select>
