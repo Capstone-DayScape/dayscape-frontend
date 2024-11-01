@@ -1,4 +1,8 @@
 import { Box, Card, CardContent, Chip, FormControl, Stack, TextField, Typography } from "@mui/material";
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import DirectionsBikeIcon from '@mui/icons-material/DirectionsBike';
+import DirectionsTransitIcon from '@mui/icons-material/DirectionsTransit';
+import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 import dayjs from "dayjs";
 import React, { useState, useRef, useEffect } from "react";
@@ -369,6 +373,22 @@ const Trip = () => {
         setIsDialogOpen(true);
     };
 
+    const getTransportIcon = (mode) => {
+        const iconProps = { sx: { color: "#666666" } }; // Set the color here
+        switch (mode) {
+            case "DRIVING":
+                return <DirectionsCarIcon {...iconProps} />;
+            case "WALKING":
+                return <DirectionsWalkIcon {...iconProps} />;
+            case "BICYCLING":
+                return <DirectionsBikeIcon {...iconProps} />;
+            case "TRANSIT":
+                return <DirectionsTransitIcon {...iconProps} />;
+            default:
+                return null;
+        }
+    };
+
     /**
      * Saves the new day data to the session storage and updates the map accordingly.
      * @param {{ date:dayjs.Dayjs, tags:string[], transportMode:string, usePrevStops:boolean }} newDay
@@ -561,14 +581,14 @@ const Trip = () => {
                                             borderRadius="16px"
                                             padding="10px"
                                             width="100%"
-                                            minWidth="250px"
-                                            minHeight="50px"
+                                            minWidth="265px"
+                                            minHeight="65px"
                                             textAlign="center"
                                             boxShadow={3}>
                                             <Typography variant="h6">{marker.name}</Typography>
                                         </Box>
                                         {index < days[selectedDayIndex].markers.length - 1 && (
-                                            <Box display="flex" alignItems="center">
+                                            <Box ml={3} display="flex" alignItems="center">
                                                 <Box
                                                     position="relative"
                                                     width="2px"
@@ -588,9 +608,22 @@ const Trip = () => {
                                                         }
                                                     }}
                                                 />
-                                                <Typography variant="body2" ml={2} color="#686879">
-                                                    {days[selectedDayIndex].travelTimes[index]}
-                                                </Typography>
+                                                <Box display="flex" alignItems="center" ml={2}>
+                                                    {getTransportIcon(tripData.days[selectedDayIndex].transportationMode)}
+                                                    <Typography
+                                                        variant="body2"
+                                                        ml={1}
+                                                        color="#686879"
+                                                        sx={{
+                                                            width: '100px', // Set a fixed width
+                                                            whiteSpace: 'nowrap', // Prevent text from wrapping
+                                                            overflow: 'hidden', // Hide overflow text
+                                                            textOverflow: 'ellipsis' // Add ellipsis for overflow text
+                                                        }}
+                                                    >
+                                                        {days[selectedDayIndex].travelTimes[index]}
+                                                    </Typography>
+                                                </Box>
                                             </Box>
                                         )}
                                     </Box>
