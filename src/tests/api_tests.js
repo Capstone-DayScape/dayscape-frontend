@@ -141,6 +141,7 @@ describe('API Tests', function () {
 	);
 	expect(response.status).to.equal(200);
 	expect(response.data.viewers).to.deep.equal([ 'viewer1@example.com', 'nweconop@uncg.edu' ])
+	// console.log(response.json);
     });
 
     it('should get the correct trip editors', async function() {
@@ -184,7 +185,8 @@ describe('API Tests', function () {
     });
 
     // random user preferences
-    const user_preferences = { random: Math.random().toString(36).substring(2), data: Math.random().toString(36).substring(2) };
+    // const user_preferences = { random: Math.random().toString(36).substring(2), data: Math.random().toString(36).substring(2) };
+    const user_preferences = [ "random", Math.random().toString(36).substring(2), "data", Math.random().toString(36).substring(2)];
 
     it('should save global user preferences', async function() {
 	const response = await axios.post(
@@ -204,5 +206,17 @@ describe('API Tests', function () {
 	expect(response.status).to.equal(200);
 	expect(response.data).to.deep.equal(user_preferences);
     });
+
+    // frontend expects a specific format for the data
+    it('should reset global user preferences so it does not break the frontend', async function() {
+	const response = await axios.post(
+	    `${baseUrl}/save_preferences`,
+	    {data: []},
+	    getAuthHeaders()
+	);
+	expect(response.status).to.equal(200);
+
+    });
+
 
 });
