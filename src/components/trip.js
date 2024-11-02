@@ -17,7 +17,7 @@ import {
     Tooltip,
     Typography
 } from "@mui/material";
-import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
+import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
 import React, { useState, useRef, useEffect } from "react";
 import { saveTrip } from "../api";
@@ -25,15 +25,22 @@ import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDia
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 
 const libraries = ["places", "marker", "geometry"];
-const tripData = JSON.parse(window.sessionStorage.getItem("trip_data"));
-const existingTripID = window.localStorage.getItem("trip_id");
+
+const existingTripData = JSON.parse(localStorage.getItem("trip_data"));
+const tripData = existingTripData ? existingTripData : JSON.parse(sessionStorage.getItem("trip_data"));
+
+const existingTripID = localStorage.getItem("trip_id");
 let tripID = existingTripID ? existingTripID : "";
 
 export default function Trip() {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
-    const [days, setDays] = useState([
-        { placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }
-    ]);
+    const [days, setDays] = useState(
+        existingTripData
+            ? tripData.days.map((day) => {
+                  return { ...day.routeStops, placeResponses: [] };
+              })
+            : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
+    );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -89,24 +96,19 @@ export default function Trip() {
                 lng: tripData.startingLocation.longitude || 0
             };
             setMapCenter(location); // Center the map on the selected location
-            setDays([
+
+            const newDays = days;
+            newDays[0].markers = [
                 {
-                    markers: [
-                        {
-                            position: location,
-                            label: "1",
-                            name: tripData.startingLocation.name,
-                            info: tripData.startingLocation.address,
-                            rating: tripData.startingLocation.user_ratings_total || "N/A"
-                        }
-                    ],
-                    routePath: [],
-                    travelTimes: [],
-                    durations: {},
-                    notes: {},
-                    placeResponses: []
+                    position: location,
+                    label: "1",
+                    name: tripData.startingLocation.name,
+                    info: tripData.startingLocation.address,
+                    rating: tripData.startingLocation.user_ratings_total || "N/A"
                 }
-            ]);
+            ];
+            setDays(newDays);
+
             fetchNearbyPlaces(location, 0, false); // Fetch nearby places for the first day
         } else {
             console.error("Couldn't load data from session storage!");
@@ -695,7 +697,7 @@ export default function Trip() {
                             {days[selectedDayIndex].markers.map(
                                 (marker, index) =>
                                     marker && (
-                                        <Marker
+                                        <MarkerF
                                             key={index}
                                             position={marker.position}
                                             label={marker.label}
@@ -813,31 +815,35 @@ const TripTitle = ({ tripName, onTripNameChange }) => {
     );
 };
 
-const SaveTripButton = ({ tripData, tripName }) => {
+const SaveTripButton = ({ tripName }) => {
     const [icon, setIcon] = useState(<SaveIcon />);
 
     const { getAccessTokenSilently } = useAuth0();
 
     useEffect(() => {
         setIcon(<SaveIcon />);
-    }, [tripData, tripName]);
+    }, [tripName]);
 
     const handleSave = async () => {
-        const accessToken = await getAccessTokenSilently();
+        try {
+            const tripData = JSON.parse(sessionStorage.getItem("trip_data"));
+            const accessToken = await getAccessTokenSilently();
 
-        const tripInfo = {
-            data: tripData,
-            id: tripID,
-            name: tripName
-        };
+            const tripInfo = {
+                data: tripData,
+                id: tripID,
+                name: tripName
+            };
+            console.log(tripInfo);
 
-        await saveTrip(accessToken, tripInfo, (tripIDResponse) => {
-            console.log(`Trip saved successfully! ID: ${tripIDResponse}`);
-            tripID = tripIDResponse;
-            setIcon(<CheckBoxOutlinedIcon color="success" />);
-        });
-
-        setIcon(<CheckBoxOutlinedIcon color="success" />);
+            await saveTrip(accessToken, tripInfo, (tripIDResponse) => {
+                console.log(`Trip saved successfully! ID: ${tripIDResponse}`);
+                tripID = tripIDResponse;
+                setIcon(<CheckBoxOutlinedIcon color="success" />);
+            });
+        } catch (error) {
+            console.error(error);
+        }
     };
 
     return (

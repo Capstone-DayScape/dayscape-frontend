@@ -69,6 +69,11 @@ export default function CreateTrip() {
     }, [getAccessTokenSilently, isAuthenticated]);
 
     const saveData = async () => {
+        // Clear local storage
+        localStorage.removeItem("trip_data");
+        localStorage.removeItem("trip_id");
+        localStorage.removeItem("trip_name");
+
         setInfoMessage({ message: "Retrieving from data...", variant: INFO_MESSAGE_VARIANT.INFO });
         try {
             const place = autocompleteRef.current.getPlace();

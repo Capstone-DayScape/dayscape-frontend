@@ -194,7 +194,7 @@ const MyTripsTab = ({ value, index }) => {
                 const tripData = response.data;
                 localStorage.setItem("trip_id", tripId);
                 localStorage.setItem("trip_name", tripName);
-                sessionStorage.setItem("trip_data", JSON.stringify(tripData));
+                localStorage.setItem("trip_data", JSON.stringify(tripData));
                 window.location.href = "/trip"; // Redirect to the trip page
             }
         } catch (error) {
