@@ -1,27 +1,74 @@
-import { Box, Card, CardContent, Chip, FormControl, Stack, TextField, Typography } from "@mui/material";
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import DirectionsBikeIcon from '@mui/icons-material/DirectionsBike';
-import DirectionsTransitIcon from '@mui/icons-material/DirectionsTransit';
-import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
-import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
+import { useAuth0 } from "@auth0/auth0-react";
+import CheckBoxOutlinedIcon from "@mui/icons-material/CheckBoxOutlined";
+import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
+import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
+import SaveIcon from "@mui/icons-material/Save";
+import {
+    Box,
+    Card,
+    CardContent,
+    Chip,
+    FormControl,
+    IconButton,
+    Stack,
+    TextField,
+    Tooltip,
+    Typography
+} from "@mui/material";
+import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
 import React, { useState, useRef, useEffect } from "react";
+import { saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 
 const libraries = ["places", "marker", "geometry"];
-const tripData = JSON.parse(window.sessionStorage.getItem("data"));
 
-const Trip = () => {
+const existingTripData = JSON.parse(localStorage.getItem("trip_data"));
+const tripData = existingTripData ? existingTripData : JSON.parse(sessionStorage.getItem("trip_data"));
+
+const existingTripID = localStorage.getItem("trip_id");
+let tripID = existingTripID ? existingTripID : "";
+
+export default function Trip() {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
-    const [days, setDays] = useState([
-        { placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }
-    ]);
+    const [days, setDays] = useState(
+        existingTripData
+            ? tripData.days.map((day) => {
+                  return { ...day.routeStops, placeResponses: [] };
+              })
+            : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
+    );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [tripName, setTripName] = useState(tripData.name ? tripData.name : "Untitled Trip");
+
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
+
+    useEffect(() => {
+        if (tripData) {
+            const newTripData = tripData;
+            newTripData.days = days.map((day, index) => {
+                // Removes placeResponses because it causes many deprecated errors that can't be removed/ignored.
+                const { placeResponses, ...rest } = day;
+
+                return { ...newTripData.days[index], routeStops: { ...rest } };
+            });
+            window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
+        }
+    }, [days]);
+
+    useEffect(() => {
+        if (tripData) {
+            const newTripData = tripData;
+            newTripData.name = tripName;
+            window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
+        }
+    }, [tripName]);
 
     /**
      * Handles events after the Google Maps API has loaded.
@@ -49,24 +96,19 @@ const Trip = () => {
                 lng: tripData.startingLocation.longitude || 0
             };
             setMapCenter(location); // Center the map on the selected location
-            setDays([
+
+            const newDays = days;
+            newDays[0].markers = [
                 {
-                    markers: [
-                        {
-                            position: location,
-                            label: "1",
-                            name: tripData.startingLocation.name,
-                            info: tripData.startingLocation.address,
-                            rating: tripData.startingLocation.user_ratings_total || "N/A"
-                        }
-                    ],
-                    routePath: [],
-                    travelTimes: [],
-                    durations: {},
-                    notes: {},
-                    placeResponses: []
+                    position: location,
+                    label: "1",
+                    name: tripData.startingLocation.name,
+                    info: tripData.startingLocation.address,
+                    rating: tripData.startingLocation.user_ratings_total || "N/A"
                 }
-            ]);
+            ];
+            setDays(newDays);
+
             fetchNearbyPlaces(location, 0, false); // Fetch nearby places for the first day
         } else {
             console.error("Couldn't load data from session storage!");
@@ -146,6 +188,15 @@ const Trip = () => {
                         }
                     }
 
+                    // Should stop if not enough destinations
+                    if (responses < MIN_DESTINATIONS_PER_DAY) {
+                        console.error(
+                            `Requires ${MIN_DESTINATIONS_PER_DAY} minimum, got ${responses.length}. These are the responses:`
+                        );
+                        console.log(responses);
+                        return;
+                    }
+
                     if (numTags < MIN_DESTINATIONS_PER_DAY) {
                         const newDestinations = [];
 
@@ -190,7 +241,6 @@ const Trip = () => {
                             calculateRoute(location, newMarkers, dayIndex, transportMode);
                         } catch (error) {
                             console.error(`newDestinations has undefined properties: ${error.message}`);
-                            console.log("These are the responses:", responses);
                         }
                     } else if (numTags > MAX_DESTINATIONS_PER_DAY) {
                         // Should not happen unless backend sends over MAX_DESTINATIONS_PER_DAY
@@ -260,7 +310,7 @@ const Trip = () => {
             location: { lat: place.position.lat, lng: place.position.lng },
             stopover: true
         }));
-    
+
         if (waypoints.length === 0) {
             console.warn("No waypoints found for the route.");
             return;
@@ -273,7 +323,7 @@ const Trip = () => {
             travelMode: window.google.maps.TravelMode[transportMode],
             optimizeWaypoints: true // Optimize the order of waypoints to form a circular route
         };
-    
+
         directionsService
             .route(request, (result, status) => {
                 if (status === window.google.maps.DirectionsStatus.OK) {
@@ -283,13 +333,12 @@ const Trip = () => {
                     }));
                     const times = result.routes[0].legs.map((leg) => leg.duration.text);
                     const optimizedOrder = result.routes[0].waypoint_order;
-    
+
                     // Reorder the markers based on the optimized order
                     const reorderedMarkers = optimizedOrder.map((index, i) => ({
                         ...places[index],
                         label: `${i + 2}` // Update the label to reflect the new order
                     }));
-    
                     setDays((prevDays) => {
                         const updatedDays = [...prevDays];
                         updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
@@ -420,7 +469,7 @@ const Trip = () => {
             usePreviousStops: newDay.usePrevStops,
             transportationMode: newDay.transportMode
         });
-        window.sessionStorage.setItem("data", JSON.stringify(newTripData));
+        window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
 
         fetchNearbyPlaces(mapCenter, newDayIndex, newDay.usePrevStops);
 
@@ -429,20 +478,14 @@ const Trip = () => {
         setIsDialogOpen(false);
     };
 
-    const daysRef = useRef(days);
-
-    useEffect(() => {
-        daysRef.current = days;
-    }, [days]);
-
     useEffect(() => {
         const selectedDayRoutePath = days[selectedDayIndex]?.routePath;
-    
+
         // Function to render the polyline
         const renderPolyline = () => {
             // Remove the existing polylines from the map
             if (polylineRef.current) {
-                polylineRef.current.forEach(polyline => polyline.setMap(null));
+                polylineRef.current.forEach((polyline) => polyline.setMap(null));
                 polylineRef.current = [];
             }
 
@@ -450,7 +493,7 @@ const Trip = () => {
             if (selectedDayRoutePath && selectedDayRoutePath.length > 0 && mapRef.current) {
                 const path = selectedDayRoutePath;
                 const colors = generateGradientColors(path.length - 1);
-    
+
                 polylineRef.current = path.slice(0, -1).map((point, index) => {
                     const segment = new window.google.maps.Polyline({
                         path: [point, path[index + 1]],
@@ -465,11 +508,11 @@ const Trip = () => {
         };
 
         renderPolyline();
-    
+
         // Cleanup function to remove the polylines when dependencies change
         return () => {
             if (polylineRef.current) {
-                polylineRef.current.forEach(polyline => polyline.setMap(null));
+                polylineRef.current.forEach((polyline) => polyline.setMap(null));
                 polylineRef.current = [];
             }
         };
@@ -479,7 +522,7 @@ const Trip = () => {
         // Unselect any selected node when switching days
         setSelectedNode(null);
     }, [selectedDayIndex]); // Run only when selectedDayIndex changes
-    
+
     const generateGradientColors = (numColors) => {
         const colors = [];
         for (let i = 0; i < numColors; i++) {
@@ -487,7 +530,7 @@ const Trip = () => {
             colors.push(`hsl(${hue}, 100%, 50%)`); // Full saturation and 50% lightness
         }
         return colors;
-    };    
+    };
 
     return (
         <LoadScript
@@ -495,7 +538,14 @@ const Trip = () => {
             libraries={libraries}
             onLoad={handleLoad}>
             <Stack direction="column">
-                <Box display="flex" alignItems="center" justifyContent="center" mb={4} mt={3}>
+                <Stack
+                    direction="row"
+                    spacing={3}
+                    sx={{ justifyContent: "space-between", alignItems: "center", mt: 3, height: 50 }}>
+                    <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
+                    <SaveTripButton tripData={tripData} tripName={tripName} />
+                </Stack>
+                <Box display="flex" alignItems="center" justifyContent="center" mb={4} mt={2}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
                             <React.Fragment key={index}>
@@ -609,18 +659,19 @@ const Trip = () => {
                                                     }}
                                                 />
                                                 <Box display="flex" alignItems="center" ml={2}>
-                                                    {getTransportIcon(tripData.days[selectedDayIndex].transportationMode)}
+                                                    {getTransportIcon(
+                                                        tripData.days[selectedDayIndex].transportationMode
+                                                    )}
                                                     <Typography
                                                         variant="body2"
                                                         ml={1}
                                                         color="#686879"
                                                         sx={{
-                                                            width: '100px', // Set a fixed width
-                                                            whiteSpace: 'nowrap', // Prevent text from wrapping
-                                                            overflow: 'hidden', // Hide overflow text
-                                                            textOverflow: 'ellipsis' // Add ellipsis for overflow text
-                                                        }}
-                                                    >
+                                                            width: "100px", // Set a fixed width
+                                                            whiteSpace: "nowrap", // Prevent text from wrapping
+                                                            overflow: "hidden", // Hide overflow text
+                                                            textOverflow: "ellipsis" // Add ellipsis for overflow text
+                                                        }}>
                                                         {days[selectedDayIndex].travelTimes[index]}
                                                     </Typography>
                                                 </Box>
@@ -646,7 +697,7 @@ const Trip = () => {
                             {days[selectedDayIndex].markers.map(
                                 (marker, index) =>
                                     marker && (
-                                        <Marker
+                                        <MarkerF
                                             key={index}
                                             position={marker.position}
                                             label={marker.label}
@@ -738,6 +789,68 @@ const Trip = () => {
             />
         </LoadScript>
     );
+}
+
+const TripTitle = ({ tripName, onTripNameChange }) => {
+    const [isEditing, setIsEditing] = useState(false);
+
+    return (
+        <>
+            {isEditing ? (
+                <TextField
+                    variant="standard"
+                    value={tripName}
+                    onChange={(event) => onTripNameChange(event.target.value)}
+                    onBlur={() => setIsEditing(false)}
+                    slotProps={{ input: { style: { fontSize: "3em" }, disableUnderline: true } }}
+                    fullWidth
+                    autoFocus
+                />
+            ) : (
+                <Typography variant="h3" onClick={() => setIsEditing(true)} sx={{ "&:hover": { cursor: "pointer" } }}>
+                    {tripName}
+                </Typography>
+            )}
+        </>
+    );
 };
 
-export default Trip;
+const SaveTripButton = ({ tripName }) => {
+    const [icon, setIcon] = useState(<SaveIcon />);
+
+    const { getAccessTokenSilently } = useAuth0();
+
+    useEffect(() => {
+        setIcon(<SaveIcon />);
+    }, [tripName]);
+
+    const handleSave = async () => {
+        try {
+            const tripData = JSON.parse(sessionStorage.getItem("trip_data"));
+            const accessToken = await getAccessTokenSilently();
+
+            const tripInfo = {
+                data: tripData,
+                id: tripID,
+                name: tripName
+            };
+            console.log(tripInfo);
+
+            await saveTrip(accessToken, tripInfo, (tripIDResponse) => {
+                console.log(`Trip saved successfully! ID: ${tripIDResponse}`);
+                tripID = tripIDResponse;
+                setIcon(<CheckBoxOutlinedIcon color="success" />);
+            });
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    return (
+        <Tooltip title="Save Trip">
+            <IconButton variant="outlined" onClick={handleSave}>
+                {icon}
+            </IconButton>
+        </Tooltip>
+    );
+};

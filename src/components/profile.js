@@ -4,8 +4,8 @@ import React, { useState, useEffect } from "react";
 import { getTestMessage, getUserPreferences, saveUserPreferences, translatePreferencesToTypes } from "../api.js";
 import TagInput from "../components/tag-input";
 import { INFO_MESSAGE_VARIANT } from "./constants";
-import EditIcon from '@mui/icons-material/Edit';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
 
 import config from "../config";
 import axios from "axios";
@@ -32,7 +32,7 @@ export default function Profile() {
                             <Tab label="My Trips" sx={{ px: 3 }} />
                         </Tabs>
                     </Paper>
-                    <Paper sx={{ flexGrow: 1, height: 500 }} elevation={2}>
+                    <Paper sx={{ flexGrow: 1, minHeight: 500 }} elevation={2}>
                         <ProfileTab value={tabIndex} index={0} />
                         <MyTagsTab value={tabIndex} index={1} />
                         <MyTripsTab value={tabIndex} index={2} />
@@ -147,39 +147,38 @@ const MyTagsTab = ({ value, index }) => {
 };
 
 const MyTripsTab = ({ value, index }) => {
-
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [currentTripToDelete, setCurrentTripToDelete] = useState(null);
 
     const handleOpenDeleteDialog = (trip) => {
-	setCurrentTripToDelete(trip);
-	setIsDeleteDialogOpen(true);
+        setCurrentTripToDelete(trip);
+        setIsDeleteDialogOpen(true);
     };
 
     const handleCloseDeleteDialog = () => {
-	setIsDeleteDialogOpen(false);
-	setCurrentTripToDelete(null);
+        setIsDeleteDialogOpen(false);
+        setCurrentTripToDelete(null);
     };
 
     const handleDeleteTrip = async () => {
-	const accessToken = await getAccessTokenSilently();
-	try {
+        const accessToken = await getAccessTokenSilently();
+        try {
             const response = await axios.get(
-		`${config.backend_endpoint}/api/private/delete_trip?trip_id=` + currentTripToDelete.uuid,
-		{
+                `${config.backend_endpoint}/api/private/delete_trip?trip_id=` + currentTripToDelete.uuid,
+                {
                     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
-		}
+                }
             );
             if (response.status === 200) {
-		// Remove the deleted trip from the list
-		setOwnedTrips((trips) => trips.filter((trip) => trip.uuid !== currentTripToDelete.uuid));
-		setSharedTrips((trips) => trips.filter((trip) => trip.uuid !== currentTripToDelete.uuid));
+                // Remove the deleted trip from the list
+                setOwnedTrips((trips) => trips.filter((trip) => trip.uuid !== currentTripToDelete.uuid));
+                setSharedTrips((trips) => trips.filter((trip) => trip.uuid !== currentTripToDelete.uuid));
             }
-	} catch (error) {
+        } catch (error) {
             console.error("Error deleting trip: ", error);
-	} finally {
+        } finally {
             handleCloseDeleteDialog();
-	}
+        }
     };
 
     const [ownedTrips, setOwnedTrips] = useState([]);
@@ -194,7 +193,7 @@ const MyTripsTab = ({ value, index }) => {
                 const ownedResponse = await axios.get(config.backend_endpoint + "/api/private/get_owned_trips_list", {
                     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
                 });
-                if(ownedResponse.status === 200) {
+                if (ownedResponse.status === 200) {
                     setOwnedTrips(ownedResponse.data);
                 }
             } catch (error) {
@@ -205,7 +204,7 @@ const MyTripsTab = ({ value, index }) => {
                 const sharedResponse = await axios.get(config.backend_endpoint + "/api/private/get_shared_trips_list", {
                     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
                 });
-                if(sharedResponse.status === 200) {
+                if (sharedResponse.status === 200) {
                     setSharedTrips(sharedResponse.data);
                 }
             } catch (error) {
@@ -221,7 +220,7 @@ const MyTripsTab = ({ value, index }) => {
         try {
             const response = await axios.post(
                 `${config.backend_endpoint}/api/private/get_trip?trip_id=` + tripId,
-		null,
+                null,
                 {
                     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
                 }
@@ -239,61 +238,66 @@ const MyTripsTab = ({ value, index }) => {
     };
 
     return (
-	<CustomTabPanel value={value} index={index}>
+        <CustomTabPanel value={value} index={index}>
             <Typography variant="h5">My Trips</Typography>
             <Box>
-		<Typography variant="h6">Owned by me</Typography>
-		{ownedTrips.length > 0 ? (
+                <Typography variant="h6">Owned by me</Typography>
+                {ownedTrips.length > 0 ? (
                     <ul>
-			{ownedTrips.map((trip) => (
+                        {ownedTrips.map((trip) => (
                             <li key={trip.uuid}>
-				{trip.name}
-				<Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}>
+                                {trip.name}
+                                <Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}>
                                     Edit
-				</Button>
-				<Button onClick={() => handleOpenDeleteDialog(trip)} color="error">Delete</Button>
+                                </Button>
+                                <Button onClick={() => handleOpenDeleteDialog(trip)} color="error">
+                                    Delete
+                                </Button>
                             </li>
-			))}
+                        ))}
                     </ul>
-		) : (
+                ) : (
                     <Typography>No owned trips available.</Typography>
-		)}
+                )}
             </Box>
             <Box>
-		<Typography variant="h6">Shared with me</Typography>
-		{sharedTrips.length > 0 ? (
+                <Typography variant="h6">Shared with me</Typography>
+                {sharedTrips.length > 0 ? (
                     <ul>
-			{sharedTrips.map((trip) => (
+                        {sharedTrips.map((trip) => (
                             <li key={trip.uuid}>
-				{trip.name}
-				<Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}>
+                                {trip.name}
+                                <Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}>
                                     Edit
-				</Button>
-				<Button onClick={() => handleOpenDeleteDialog(trip)} color="error">Delete</Button>
+                                </Button>
+                                <Button onClick={() => handleOpenDeleteDialog(trip)} color="error">
+                                    Delete
+                                </Button>
                             </li>
-			))}
+                        ))}
                     </ul>
-		) : (
+                ) : (
                     <Typography>No shared trips available.</Typography>
-		)}
+                )}
             </Box>
 
             <Dialog open={isDeleteDialogOpen} onClose={handleCloseDeleteDialog}>
-		<DialogTitle>Confirm Deletion</DialogTitle>
-		<DialogContent>
+                <DialogTitle>Confirm Deletion</DialogTitle>
+                <DialogContent>
                     <DialogContentText>
-			Are you sure you want to delete the trip "{currentTripToDelete?.name}? This is final and cannot be reversed!"
+                        Are you sure you want to delete the trip "{currentTripToDelete?.name}? This is final and cannot
+                        be reversed!"
                     </DialogContentText>
-		</DialogContent>
-		<DialogActions>
+                </DialogContent>
+                <DialogActions>
                     <Button onClick={handleCloseDeleteDialog} color="primary">
-			Cancel
+                        Cancel
                     </Button>
                     <Button onClick={handleDeleteTrip} color="error">
-			Delete
+                        Delete
                     </Button>
-		</DialogActions>
+                </DialogActions>
             </Dialog>
-	</CustomTabPanel>
+        </CustomTabPanel>
     );
 };

@@ -33,7 +33,6 @@ const tripData = {
         latitude: null,
         longitude: null
     },
-    globalTags: [],
     days: [
         {
             index: 0,
@@ -59,6 +58,7 @@ export default function CreateTrip() {
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!isAuthenticated) return;
             const accessToken = await getAccessTokenSilently();
 
             await getUserPreferences(accessToken, (response) => {
@@ -66,9 +66,14 @@ export default function CreateTrip() {
             });
         };
         fetchData().catch((err) => console.error(err));
-    }, [getAccessTokenSilently]);
+    }, [getAccessTokenSilently, isAuthenticated]);
 
     const saveData = async () => {
+        // Clear local storage
+        localStorage.removeItem("trip_data");
+        localStorage.removeItem("trip_id");
+        localStorage.removeItem("trip_name");
+
         setInfoMessage({ message: "Retrieving from data...", variant: INFO_MESSAGE_VARIANT.INFO });
         try {
             const place = autocompleteRef.current.getPlace();
@@ -99,7 +104,7 @@ export default function CreateTrip() {
 
             // Stores data into session storage
             setInfoMessage({ message: "Saving to session...", variant: INFO_MESSAGE_VARIANT.INFO });
-            window.sessionStorage.setItem("data", JSON.stringify(tripData));
+            window.sessionStorage.setItem("trip_data", JSON.stringify(tripData));
             setInfoMessage({ message: "Done.", variant: INFO_MESSAGE_VARIANT.SUCCESS });
 
             // Go to trip page
