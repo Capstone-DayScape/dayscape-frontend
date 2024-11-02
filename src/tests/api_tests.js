@@ -134,8 +134,54 @@ describe('API Tests', function () {
 	expect(found_element).to.deep.equal(expected_element)
     });
 
-    // TODO: need tests here to get the editors and viewers for the
-    // same trip once we implement that in the API
+    it('should get the correct trip viewers', async function() {
+	const response = await axios.get(
+	    `${baseUrl}/get_trip_viewers?trip_id=${test_trip_id}`,
+	    getAuthHeaders()
+	);
+	expect(response.status).to.equal(200);
+	expect(response.data.viewers).to.deep.equal([ 'viewer1@example.com', 'nweconop@uncg.edu' ])
+    });
+
+    it('should get the correct trip editors', async function() {
+	const response = await axios.get(
+	    `${baseUrl}/get_trip_editors?trip_id=${test_trip_id}`,
+	    getAuthHeaders()
+	);
+	expect(response.status).to.equal(200);
+	expect(response.data.editors).to.deep.equal([ 'editor1@example.com', 'editor2@example.com' ])
+    });
+
+
+    it('should get the correct trip name', async function() {
+	const response = await axios.get(
+	    `${baseUrl}/get_trip_name?trip_id=${test_trip_id}`,
+	    getAuthHeaders()
+	);
+	expect(response.status).to.equal(200);
+	expect(response.data.trip_name).to.equal("Updated test trip name")
+    });
+
+
+    it('should delete the trip', async function() {
+	const response = await axios.get(
+	    `${baseUrl}/delete_trip?trip_id=${test_trip_id}`,
+	    getAuthHeaders()
+	);
+	expect(response.status).to.equal(200);
+    });
+
+    it('should fail to query information about the trip after deletion', async function() {
+	try {
+            const response = await axios.get(
+		`${baseUrl}/get_trip_name?trip_id=${test_trip_id}`,
+		getAuthHeaders()
+            );
+            throw new Error('Expected request to fail');
+	} catch (error) {
+            expect(error.response.status).to.equal(404);
+	}
+    });
 
     // random user preferences
     const user_preferences = { random: Math.random().toString(36).substring(2), data: Math.random().toString(36).substring(2) };
@@ -159,5 +205,4 @@ describe('API Tests', function () {
 	expect(response.data).to.deep.equal(user_preferences);
     });
 
-    // TODO: need to add tests to delete the trip we created!
 });
