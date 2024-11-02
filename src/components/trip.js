@@ -1,5 +1,9 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import CheckBoxOutlinedIcon from "@mui/icons-material/CheckBoxOutlined";
+import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
+import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import SaveIcon from "@mui/icons-material/Save";
 import {
     Box,
@@ -13,10 +17,6 @@ import {
     Tooltip,
     Typography
 } from "@mui/material";
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import DirectionsBikeIcon from '@mui/icons-material/DirectionsBike';
-import DirectionsTransitIcon from '@mui/icons-material/DirectionsTransit';
-import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 import dayjs from "dayjs";
 import React, { useState, useRef, useEffect } from "react";
@@ -25,8 +25,9 @@ import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDia
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 
 const libraries = ["places", "marker", "geometry"];
-const tripData = JSON.parse(window.sessionStorage.getItem("data"));
-let tripID = "";
+const tripData = JSON.parse(window.sessionStorage.getItem("trip_data"));
+const existingTripID = window.localStorage.getItem("trip_id");
+let tripID = existingTripID ? existingTripID : "";
 
 export default function Trip() {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
@@ -40,6 +41,27 @@ export default function Trip() {
 
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
+
+    useEffect(() => {
+        if (tripData) {
+            const newTripData = tripData;
+            newTripData.days = days.map((day, index) => {
+                // Removes placeResponses because it causes many deprecated errors that can't be removed/ignored.
+                const { placeResponses, ...rest } = day;
+
+                return { ...newTripData.days[index], routeStops: { ...rest } };
+            });
+            window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
+        }
+    }, [days]);
+
+    useEffect(() => {
+        if (tripData) {
+            const newTripData = tripData;
+            newTripData.name = tripName;
+            window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
+        }
+    }, [tripName]);
 
     /**
      * Handles events after the Google Maps API has loaded.
@@ -164,6 +186,15 @@ export default function Trip() {
                         }
                     }
 
+                    // Should stop if not enough destinations
+                    if (responses < MIN_DESTINATIONS_PER_DAY) {
+                        console.error(
+                            `Requires ${MIN_DESTINATIONS_PER_DAY} minimum, got ${responses.length}. These are the responses:`
+                        );
+                        console.log(responses);
+                        return;
+                    }
+
                     if (numTags < MIN_DESTINATIONS_PER_DAY) {
                         const newDestinations = [];
 
@@ -207,9 +238,7 @@ export default function Trip() {
                             });
                             calculateRoute(location, newMarkers, dayIndex, transportMode);
                         } catch (error) {
-                            console.error(
-                                `Requires ${MIN_DESTINATIONS_PER_DAY} minimum, got ${responses.length}. These are the responses: ${responses}`
-                            );
+                            console.error(`newDestinations has undefined properties: ${error.message}`);
                         }
                     } else if (numTags > MAX_DESTINATIONS_PER_DAY) {
                         // Should not happen unless backend sends over MAX_DESTINATIONS_PER_DAY
@@ -438,7 +467,7 @@ export default function Trip() {
             usePreviousStops: newDay.usePrevStops,
             transportationMode: newDay.transportMode
         });
-        window.sessionStorage.setItem("data", JSON.stringify(newTripData));
+        window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
 
         fetchNearbyPlaces(mapCenter, newDayIndex, newDay.usePrevStops);
 
@@ -446,12 +475,6 @@ export default function Trip() {
         setSelectedDayIndex(newDayIndex);
         setIsDialogOpen(false);
     };
-
-    const daysRef = useRef(days);
-
-    useEffect(() => {
-        daysRef.current = days;
-    }, [days]);
 
     useEffect(() => {
         const selectedDayRoutePath = days[selectedDayIndex]?.routePath;
@@ -513,7 +536,10 @@ export default function Trip() {
             libraries={libraries}
             onLoad={handleLoad}>
             <Stack direction="column">
-                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mt: 2 }}>
+                <Stack
+                    direction="row"
+                    spacing={3}
+                    sx={{ justifyContent: "space-between", alignItems: "center", mt: 3, height: 50 }}>
                     <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
                     <SaveTripButton tripData={tripData} tripName={tripName} />
                 </Stack>
@@ -631,18 +657,19 @@ export default function Trip() {
                                                     }}
                                                 />
                                                 <Box display="flex" alignItems="center" ml={2}>
-                                                    {getTransportIcon(tripData.days[selectedDayIndex].transportationMode)}
+                                                    {getTransportIcon(
+                                                        tripData.days[selectedDayIndex].transportationMode
+                                                    )}
                                                     <Typography
                                                         variant="body2"
                                                         ml={1}
                                                         color="#686879"
                                                         sx={{
-                                                            width: '100px', // Set a fixed width
-                                                            whiteSpace: 'nowrap', // Prevent text from wrapping
-                                                            overflow: 'hidden', // Hide overflow text
-                                                            textOverflow: 'ellipsis' // Add ellipsis for overflow text
-                                                        }}
-                                                    >
+                                                            width: "100px", // Set a fixed width
+                                                            whiteSpace: "nowrap", // Prevent text from wrapping
+                                                            overflow: "hidden", // Hide overflow text
+                                                            textOverflow: "ellipsis" // Add ellipsis for overflow text
+                                                        }}>
                                                         {days[selectedDayIndex].travelTimes[index]}
                                                     </Typography>
                                                 </Box>
@@ -769,14 +796,16 @@ const TripTitle = ({ tripName, onTripNameChange }) => {
         <>
             {isEditing ? (
                 <TextField
-                    variant="outlined"
+                    variant="standard"
                     value={tripName}
                     onChange={(event) => onTripNameChange(event.target.value)}
                     onBlur={() => setIsEditing(false)}
+                    slotProps={{ input: { style: { fontSize: "3em" }, disableUnderline: true } }}
+                    fullWidth
                     autoFocus
                 />
             ) : (
-                <Typography variant="h3" onClick={() => setIsEditing(true)}>
+                <Typography variant="h3" onClick={() => setIsEditing(true)} sx={{ "&:hover": { cursor: "pointer" } }}>
                     {tripName}
                 </Typography>
             )}
@@ -798,8 +827,8 @@ const SaveTripButton = ({ tripData, tripName }) => {
 
         const tripInfo = {
             data: tripData,
-            name: tripName,
-            id: tripID
+            id: tripID,
+            name: tripName
         };
 
         await saveTrip(accessToken, tripInfo, (tripIDResponse) => {
@@ -807,6 +836,8 @@ const SaveTripButton = ({ tripData, tripName }) => {
             tripID = tripIDResponse;
             setIcon(<CheckBoxOutlinedIcon color="success" />);
         });
+
+        setIcon(<CheckBoxOutlinedIcon color="success" />);
     };
 
     return (

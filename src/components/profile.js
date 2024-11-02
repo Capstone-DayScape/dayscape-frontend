@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { getTestMessage, getUserPreferences, saveUserPreferences, translatePreferencesToTypes } from "../api.js";
 import TagInput from "../components/tag-input";
 import { INFO_MESSAGE_VARIANT } from "./constants";
-import EditIcon from '@mui/icons-material/Edit';
+import EditIcon from "@mui/icons-material/Edit";
 
 import config from "../config";
 import axios from "axios";
@@ -31,7 +31,7 @@ export default function Profile() {
                             <Tab label="My Trips" sx={{ px: 3 }} />
                         </Tabs>
                     </Paper>
-                    <Paper sx={{ flexGrow: 1, height: 500 }} elevation={2}>
+                    <Paper sx={{ flexGrow: 1, minHeight: 500 }} elevation={2}>
                         <ProfileTab value={tabIndex} index={0} />
                         <MyTagsTab value={tabIndex} index={1} />
                         <MyTripsTab value={tabIndex} index={2} />
@@ -158,7 +158,7 @@ const MyTripsTab = ({ value, index }) => {
                 const ownedResponse = await axios.get(config.backend_endpoint + "/api/private/get_owned_trips_list", {
                     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
                 });
-                if(ownedResponse.status === 200) {
+                if (ownedResponse.status === 200) {
                     setOwnedTrips(ownedResponse.data);
                 }
             } catch (error) {
@@ -169,7 +169,7 @@ const MyTripsTab = ({ value, index }) => {
                 const sharedResponse = await axios.get(config.backend_endpoint + "/api/private/get_shared_trips_list", {
                     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
                 });
-                if(sharedResponse.status === 200) {
+                if (sharedResponse.status === 200) {
                     setSharedTrips(sharedResponse.data);
                 }
             } catch (error) {
@@ -185,7 +185,7 @@ const MyTripsTab = ({ value, index }) => {
         try {
             const response = await axios.post(
                 `${config.backend_endpoint}/api/private/get_trip?trip_id=` + tripId,
-		null,
+                null,
                 {
                     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
                 }
@@ -194,7 +194,7 @@ const MyTripsTab = ({ value, index }) => {
                 const tripData = response.data;
                 localStorage.setItem("trip_id", tripId);
                 localStorage.setItem("trip_name", tripName);
-                localStorage.setItem("trip_data", JSON.stringify(tripData));
+                sessionStorage.setItem("trip_data", JSON.stringify(tripData));
                 window.location.href = "/trip"; // Redirect to the trip page
             }
         } catch (error) {
