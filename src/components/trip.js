@@ -1,21 +1,31 @@
-import React, { useState, useRef, useEffect } from "react";
+import { Box, Card, CardContent, Chip, FormControl, Stack, TextField, Typography } from "@mui/material";
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import DirectionsBikeIcon from '@mui/icons-material/DirectionsBike';
+import DirectionsTransitIcon from '@mui/icons-material/DirectionsTransit';
+import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
-import { Box, Typography, Card, CardContent, TextField, FormControl } from "@mui/material";
-import AddDayDialog from "./add-day-dialog"; // Import the AddDayDialog component
 import dayjs from "dayjs";
+import React, { useState, useRef, useEffect } from "react";
+import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
+import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 
-const libraries = ["places", "marker"];
-const data = JSON.parse(window.sessionStorage.getItem("data"));
+const libraries = ["places", "marker", "geometry"];
+const tripData = JSON.parse(window.sessionStorage.getItem("data"));
 
 const Trip = () => {
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
-    const [days, setDays] = useState([{ markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]);
+    const [days, setDays] = useState([
+        { placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }
+    ]);
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
 
+    /**
+     * Handles events after the Google Maps API has loaded.
+     */
     const handleLoad = () => {
         const loadGoogleMaps = async () => {
             if (window.google && window.google.maps) {
@@ -29,85 +39,228 @@ const Trip = () => {
         });
     };
 
+    /**
+     * Sets information for the first marker and sets the map center.
+     */
     const getData = () => {
-        if (data) {
+        if (tripData) {
             const location = {
-                lat: data.startingLocation.latitude || 0,
-                lng: data.startingLocation.longitude || 0
+                lat: tripData.startingLocation.latitude || 0,
+                lng: tripData.startingLocation.longitude || 0
             };
             setMapCenter(location); // Center the map on the selected location
-            setDays([{ markers: [{ position: location, label: "1", name: data.startingLocation.name, info: data.startingLocation.address, rating: data.startingLocation.user_ratings_total || "N/A" }], routePath: [], travelTimes: [], durations: {}, notes: {} }]);
+            setDays([
+                {
+                    markers: [
+                        {
+                            position: location,
+                            label: "1",
+                            name: tripData.startingLocation.name,
+                            info: tripData.startingLocation.address,
+                            rating: tripData.startingLocation.user_ratings_total || "N/A"
+                        }
+                    ],
+                    routePath: [],
+                    travelTimes: [],
+                    durations: {},
+                    notes: {},
+                    placeResponses: []
+                }
+            ]);
             fetchNearbyPlaces(location, 0, false); // Fetch nearby places for the first day
         } else {
             console.error("Couldn't load data from session storage!");
         }
     };
 
+    /**
+     * Sends a request to the Google Maps Places API to fetch nearby places. Updates the current day destinations. Adds
+     * markers for each destination and sets duration at each location.
+     * @param {{lat:number, lng:number}} location Starting location
+     * @param {number} dayIndex Index of the current day
+     * @param {boolean} usePrevStops Whether to use previous stops for this day
+     */
     const fetchNearbyPlaces = (location, dayIndex, usePrevStops) => {
         if (!window.google || !window.google.maps || !window.google.maps.places) {
             console.error("Google Maps Places API is not loaded.");
             return;
         }
 
+        let requestLeft = tripData.days[dayIndex].dayTags.length;
+
         const service = new window.google.maps.places.PlacesService(document.createElement("div"));
-        const request = {
-            location,
-            radius: "5000",
-            type: ["restaurant"],
-            rankBy: window.google.maps.places.RankBy.PROMINENCE
-        };
+        const tags = tripData.days[dayIndex].dayTags;
+        const responses = [];
 
-        const handleResults = (results, status) => {
-            if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                let sortedResults = results.sort((a, b) => b.rating - a.rating);
+        // Adjust the search radius based on the selected transportation mode
+        const transportMode = tripData.days[dayIndex].transportationMode;
+        let radius;
+        switch (transportMode) {
+            case "DRIVING":
+                radius = 5000;
+                break;
+            case "WALKING":
+                radius = 1000;
+                break;
+            case "BICYCLING":
+                radius = 2000;
+                break;
+            case "TRANSIT":
+                radius = 3000;
+                break;
+            default:
+                radius = 1500;
+        }
 
-                if (!usePrevStops) {
-                    const usedPlaces = new Set(days.flatMap(day => day.markers.map(marker => marker.name)));
-                    sortedResults = sortedResults.filter(place => !usedPlaces.has(place.name));
-                }
+        tags.forEach((tag) => {
+            const request = {
+                location,
+                radius,
+                type: tag,
+                rankBy: window.google.maps.places.RankBy.PROMINENCE
+            };
 
-                const newMarkers = sortedResults.slice(0, 3).map((place, index) => ({
-                    position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-                    label: `${index + 2}`,
-                    name: place.name,
-                    info: place.vicinity,
-                    rating: place.user_ratings_total,
-                    duration: { hours: 2, minutes: 0 }
-                }));
+            // Makes the request to fetch nearby places
+            service.nearbySearch(request, (results, status) => {
+                const numTags = tripData.days[dayIndex].dayTags.length;
 
-                setDays((prevDays) => {
-                    const updatedDays = [...prevDays];
-                    updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
-                    updatedDays[dayIndex].durations = {
-                        ...updatedDays[dayIndex].durations,
-                        ...newMarkers.reduce((acc, marker) => {
-                            acc[marker.name] = { hours: 2, minutes: 0 };
-                            return acc;
-                        }, {})
-                    };
-                    return updatedDays;
-                });
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    const sortedResults = results.sort((a, b) => b.rating - a.rating);
 
-                if (newMarkers.length > 0) {
-                    calculateRoute(location, newMarkers, dayIndex);
+                    responses.push({
+                        tag: tag,
+                        results: sortedResults,
+                        resultIndex: 0
+                    });
                 } else {
-                    console.warn("No new places found for the given criteria.");
+                    console.error("PlacesServiceStatus not OK:", status);
                 }
-            } else {
-                console.error("PlacesServiceStatus not OK:", status);
-            }
-        };
 
-        service.nearbySearch(request, handleResults);
+                // Last request
+                if (requestLeft === 1) {
+                    if (!usePrevStops) {
+                        for (let i = 0; i < responses.length; i++) {
+                            const usedPlaces = new Set(days.flatMap((day) => day.markers.map((marker) => marker.name)));
+                            responses[i].results = responses[i].results.filter((place) => !usedPlaces.has(place.name));
+                            responses[i].resultIndex = 0;
+                        }
+                    }
+
+                    if (numTags < MIN_DESTINATIONS_PER_DAY) {
+                        const newDestinations = [];
+
+                        // Extracts new destinations from placesResponse
+                        for (let i = 0; i < MIN_DESTINATIONS_PER_DAY; i++) {
+                            const responseIdx = i % responses.length;
+                            newDestinations.push({
+                                tag: responses[responseIdx].tag,
+                                destination: responses[responseIdx].results[responses[responseIdx].resultIndex]
+                            });
+                            responses[responseIdx].resultIndex++;
+                        }
+
+                        try {
+                            const newMarkers = newDestinations.map((place, index) => ({
+                                position: {
+                                    lat: place.destination.geometry.location.lat(),
+                                    lng: place.destination.geometry.location.lng()
+                                },
+                                label: `${index + 2}`,
+                                type: place.tag,
+                                types: place.destination.types,
+                                name: place.destination.name,
+                                info: place.destination.vicinity,
+                                rating: place.destination.user_ratings_total,
+                                duration: { hours: 2, minutes: 0 }
+                            }));
+
+                            setDays((prevDays) => {
+                                const updatedDays = [...prevDays];
+                                updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
+                                updatedDays[dayIndex].placeResponses = responses;
+                                updatedDays[dayIndex].durations = {
+                                    ...updatedDays[dayIndex].durations,
+                                    ...newMarkers.reduce((acc, marker) => {
+                                        acc[marker.name] = { hours: 2, minutes: 0 };
+                                        return acc;
+                                    }, {})
+                                };
+                                return updatedDays;
+                            });
+                            calculateRoute(location, newMarkers, dayIndex, transportMode);
+                        } catch (error) {
+                            console.error(`newDestinations has undefined properties: ${error.message}`);
+                            console.log("These are the responses:", responses);
+                        }
+                    } else if (numTags > MAX_DESTINATIONS_PER_DAY) {
+                        // Should not happen unless backend sends over MAX_DESTINATIONS_PER_DAY
+                        console.log("Received too many destinations.");
+                    } else {
+                        const newDestinations = [];
+
+                        responses.forEach((response) => {
+                            newDestinations.push({
+                                tag: response.tag,
+                                destination: response.results[response.resultIndex]
+                            });
+                            response.resultIndex++;
+                        });
+
+                        try {
+                            const newMarkers = newDestinations.map((place, index) => ({
+                                position: {
+                                    lat: place.destination.geometry.location.lat(),
+                                    lng: place.destination.geometry.location.lng()
+                                },
+                                label: `${index + 2}`,
+                                type: place.tag,
+                                types: place.destination.types,
+                                name: place.destination.name,
+                                info: place.destination.vicinity,
+                                rating: place.destination.user_ratings_total,
+                                duration: { hours: 2, minutes: 0 }
+                            }));
+
+                            setDays((prevDays) => {
+                                const updatedDays = [...prevDays];
+                                updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
+                                updatedDays[dayIndex].placeResponses = responses;
+                                updatedDays[dayIndex].durations = {
+                                    ...updatedDays[dayIndex].durations,
+                                    ...newMarkers.reduce((acc, marker) => {
+                                        acc[marker.name] = { hours: 2, minutes: 0 };
+                                        return acc;
+                                    }, {})
+                                };
+                                return updatedDays;
+                            });
+                            calculateRoute(location, newMarkers, dayIndex, transportMode);
+                        } catch (error) {
+                            console.error(`newDestinations has undefined properties: ${error.message}`);
+                        }
+                    }
+                }
+                requestLeft--;
+            });
+        });
     };
 
-    const calculateRoute = (origin, places, dayIndex) => {
+    /**
+     * Calculates the route between the starting location and the given destinations for the current day index. Sets
+     * the polyline path on the map.
+     * @param {{lat:number, lng:number}} origin Starting location
+     * @param {{duration: {hours: number, minutes: number}, name: *, rating: *, position: {lng: *, lat: *}, label: string, info: *}[]} places
+     * List of destinations
+     * @param {number} dayIndex Current day index
+     * @param {string} transportMode Mode of transportation
+     */
+    const calculateRoute = (origin, places, dayIndex, transportMode) => {
         const directionsService = new window.google.maps.DirectionsService();
         const waypoints = places.map((place) => ({
             location: { lat: place.position.lat, lng: place.position.lng },
             stopover: true
         }));
-
+    
         if (waypoints.length === 0) {
             console.warn("No waypoints found for the route.");
             return;
@@ -115,28 +268,42 @@ const Trip = () => {
 
         const request = {
             origin,
-            destination: waypoints[waypoints.length - 1].location,
+            destination: origin, // Set the destination to the origin to create a loop
             waypoints,
-            travelMode: window.google.maps.TravelMode.DRIVING
+            travelMode: window.google.maps.TravelMode[transportMode],
+            optimizeWaypoints: true // Optimize the order of waypoints to form a circular route
         };
-
-        directionsService.route(request, (result, status) => {
-            if (status === window.google.maps.DirectionsStatus.OK) {
-                const route = result.routes[0].overview_path.map((point) => ({
-                    lat: point.lat(),
-                    lng: point.lng()
-                }));
-                const times = result.routes[0].legs.map((leg) => leg.duration.text);
-                setDays((prevDays) => {
-                    const updatedDays = [...prevDays];
-                    updatedDays[dayIndex].routePath = route;
-                    updatedDays[dayIndex].travelTimes = times;
-                    return updatedDays;
-                });
-            } else {
-                console.error("Route calculation failed:", status);
-            }
-        });
+    
+        directionsService
+            .route(request, (result, status) => {
+                if (status === window.google.maps.DirectionsStatus.OK) {
+                    const route = result.routes[0].overview_path.map((point) => ({
+                        lat: point.lat(),
+                        lng: point.lng()
+                    }));
+                    const times = result.routes[0].legs.map((leg) => leg.duration.text);
+                    const optimizedOrder = result.routes[0].waypoint_order;
+    
+                    // Reorder the markers based on the optimized order
+                    const reorderedMarkers = optimizedOrder.map((index, i) => ({
+                        ...places[index],
+                        label: `${i + 2}` // Update the label to reflect the new order
+                    }));
+    
+                    setDays((prevDays) => {
+                        const updatedDays = [...prevDays];
+                        updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
+                        updatedDays[dayIndex].routePath = route;
+                        updatedDays[dayIndex].travelTimes = times;
+                        return updatedDays;
+                    });
+                } else {
+                    throw new Error(`Route calculation failed: ${status}`);
+                }
+            })
+            .catch((error) => {
+                console.error(error);
+            });
     };
 
     const handleNotesChange = (e) => {
@@ -172,22 +339,26 @@ const Trip = () => {
         });
     };
 
+    /**
+     * Calculates and returns the total trip duration for the selected day.
+     * @returns {string} Total trip duration in hours and minutes
+     */
     const calculateTotalTripDuration = () => {
         let totalMinutes = 0;
         const durations = days[selectedDayIndex].durations;
         const travelTimes = days[selectedDayIndex].travelTimes;
 
-        Object.entries(durations).forEach(([name, duration]) => {
+        Object.entries(durations).forEach(([_, duration]) => {
             const locationMinutes = (parseInt(duration.hours) || 0) * 60 + (parseInt(duration.minutes) || 0);
             totalMinutes += locationMinutes;
         });
 
-        travelTimes.forEach(time => {
-            const [value, unit] = time.split(' ');
+        travelTimes.forEach((time) => {
+            const [value, unit] = time.split(" ");
             let travelMinutes = 0;
-            if (unit.includes('hour')) {
+            if (unit.includes("hour")) {
                 travelMinutes = parseInt(value) * 60;
-            } else if (unit.includes('min')) {
+            } else if (unit.includes("min")) {
                 travelMinutes = parseInt(value);
             }
             totalMinutes += travelMinutes;
@@ -202,15 +373,54 @@ const Trip = () => {
         setIsDialogOpen(true);
     };
 
+    const getTransportIcon = (mode) => {
+        const iconProps = { sx: { color: "#666666" } }; // Set the color here
+        switch (mode) {
+            case "DRIVING":
+                return <DirectionsCarIcon {...iconProps} />;
+            case "WALKING":
+                return <DirectionsWalkIcon {...iconProps} />;
+            case "BICYCLING":
+                return <DirectionsBikeIcon {...iconProps} />;
+            case "TRANSIT":
+                return <DirectionsTransitIcon {...iconProps} />;
+            default:
+                return null;
+        }
+    };
+
+    /**
+     * Saves the new day data to the session storage and updates the map accordingly.
+     * @param {{ date:dayjs.Dayjs, tags:string[], transportMode:string, usePrevStops:boolean }} newDay
+     */
     const handleSaveDay = (newDay) => {
         const newDayIndex = days.length;
         const newDayData = {
-            markers: [{ position: mapCenter, label: "1", name: data.startingLocation.name, info: data.startingLocation.address, rating: data.startingLocation.user_ratings_total || "N/A" }],
+            markers: [
+                {
+                    position: mapCenter,
+                    label: "1",
+                    name: tripData.startingLocation.name,
+                    info: tripData.startingLocation.address,
+                    rating: tripData.startingLocation.user_ratings_total || "N/A"
+                }
+            ],
             routePath: [],
             travelTimes: [],
             durations: {},
-            notes: {}
+            notes: {},
+            placeResponses: []
         };
+
+        const newTripData = tripData;
+        newTripData.days.push({
+            index: newDayIndex,
+            dayTags: newDay.tags,
+            routeStops: [],
+            usePreviousStops: newDay.usePrevStops,
+            transportationMode: newDay.transportMode
+        });
+        window.sessionStorage.setItem("data", JSON.stringify(newTripData));
 
         fetchNearbyPlaces(mapCenter, newDayIndex, newDay.usePrevStops);
 
@@ -224,42 +434,68 @@ const Trip = () => {
     useEffect(() => {
         daysRef.current = days;
     }, [days]);
-    
+
     useEffect(() => {
+        const selectedDayRoutePath = days[selectedDayIndex]?.routePath;
+    
         // Function to render the polyline
         const renderPolyline = () => {
-            // Remove the existing polyline from the map
+            // Remove the existing polylines from the map
             if (polylineRef.current) {
-                polylineRef.current.setMap(null);
+                polylineRef.current.forEach(polyline => polyline.setMap(null));
+                polylineRef.current = [];
             }
-    
+
             // Add the polyline for the selected day
-            if (daysRef.current[selectedDayIndex].routePath.length > 0 && mapRef.current) {
-                polylineRef.current = new window.google.maps.Polyline({
-                    path: daysRef.current[selectedDayIndex].routePath,
-                    strokeColor: "#DD0066",
-                    strokeOpacity: 0.75,
-                    strokeWeight: 6
+            if (selectedDayRoutePath && selectedDayRoutePath.length > 0 && mapRef.current) {
+                const path = selectedDayRoutePath;
+                const colors = generateGradientColors(path.length - 1);
+    
+                polylineRef.current = path.slice(0, -1).map((point, index) => {
+                    const segment = new window.google.maps.Polyline({
+                        path: [point, path[index + 1]],
+                        strokeColor: colors[index],
+                        strokeOpacity: 1,
+                        strokeWeight: 6
+                    });
+                    segment.setMap(mapRef.current);
+                    return segment;
                 });
-                polylineRef.current.setMap(mapRef.current);
             }
         };
-    
+
         renderPolyline();
-    }, [selectedDayIndex, days]); // Run when selectedDayIndex or days changes
     
+        // Cleanup function to remove the polylines when dependencies change
+        return () => {
+            if (polylineRef.current) {
+                polylineRef.current.forEach(polyline => polyline.setMap(null));
+                polylineRef.current = [];
+            }
+        };
+    }, [selectedDayIndex, days, mapRef]);
+
     useEffect(() => {
         // Unselect any selected node when switching days
         setSelectedNode(null);
     }, [selectedDayIndex]); // Run only when selectedDayIndex changes
+    
+    const generateGradientColors = (numColors) => {
+        const colors = [];
+        for (let i = 0; i < numColors; i++) {
+            const hue = Math.floor((300 * i) / (numColors - 1)); // Hue range
+            colors.push(`hsl(${hue}, 100%, 50%)`); // Full saturation and 50% lightness
+        }
+        return colors;
+    };    
 
     return (
         <LoadScript
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
             libraries={libraries}
             onLoad={handleLoad}>
-            <Box display="flex" flexDirection="column" height="80vh" alignItems="center" justifyContent="center">
-                <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
+            <Stack direction="column">
+                <Box display="flex" alignItems="center" justifyContent="center" mb={4} mt={3}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
                             <React.Fragment key={index}>
@@ -274,7 +510,7 @@ const Trip = () => {
                                         alignItems: "center",
                                         justifyContent: "center",
                                         color: "white",
-                                        cursor: "pointer",
+                                        cursor: "pointer"
                                     }}>
                                     {index + 1}
                                 </Box>
@@ -289,14 +525,14 @@ const Trip = () => {
                                 )}
                             </React.Fragment>
                         ))}
-                            <Box
-                                sx={{
-                                    width: 35,
-                                    height: 2,
-                                    backgroundColor: "#686879"
-                                }}
-                            />
-                            <Box
+                        <Box
+                            sx={{
+                                width: 35,
+                                height: 2,
+                                backgroundColor: "#686879"
+                            }}
+                        />
+                        <Box
                             onClick={handleAddDay}
                             sx={{
                                 width: 40,
@@ -313,7 +549,7 @@ const Trip = () => {
                         </Box>
                     </Box>
                 </Box>
-                <Box display="flex" height="100%" width="100%" alignItems="center" justifyContent="center">
+                <Stack direction="row">
                     <Box
                         width="25%"
                         padding="10px"
@@ -322,63 +558,77 @@ const Trip = () => {
                         alignItems="center"
                         overflow="auto"
                         mr={4}>
-                        {days[selectedDayIndex].markers.map((marker, index) => (
-                            marker && (
-                                <Box
-                                    key={index}
-                                    display="flex"
-                                    flexDirection="column"
-                                    alignItems="center"
-                                    mb={2}
-                                    onClick={() => {
-                                        setSelectedNode(selectedNode?.name === marker.name ? null : marker);
-                                    }}
-                                    sx={{ cursor: "pointer" }}>
+                        {days[selectedDayIndex].markers.map(
+                            (marker, index) =>
+                                marker && (
                                     <Box
+                                        key={index}
                                         display="flex"
                                         flexDirection="column"
                                         alignItems="center"
-                                        justifyContent="center"
-                                        bgcolor={selectedNode?.name === marker.name ? "#4caf50" : "primary.main"}
-                                        color="white"
-                                        borderRadius="16px"
-                                        padding="10px"
-                                        width="100%"
-                                        minWidth="250px"
-                                        minHeight="50px"
-                                        textAlign="center"
-                                        boxShadow={3}>
-                                        <Typography variant="h6">{marker.name}</Typography>
-                                    </Box>
-                                    {index < days[selectedDayIndex].markers.length - 1 && (
-                                        <Box display="flex" alignItems="center">
-                                            <Box
-                                                position="relative"
-                                                width="2px"
-                                                height="65px"
-                                                bgcolor="#686879"
-                                                mb={-2}
-                                                sx={{
-                                                    "&::after": {
-                                                        content: '""',
-                                                        position: "absolute",
-                                                        bottom: 0,
-                                                        left: "50%",
-                                                        transform: "translateX(-50%)",
-                                                        borderLeft: "5px solid transparent",
-                                                        borderRight: "5px solid transparent",
-                                                        borderTop: "10px solid #686879"
-                                                    }
-                                                }}
-                                            />
-                                            <Typography variant="body2" ml={2} color="#686879">
-                                                {days[selectedDayIndex].travelTimes[index]}
-                                            </Typography>
+                                        mb={2}
+                                        onClick={() => {
+                                            setSelectedNode(selectedNode?.name === marker.name ? null : marker);
+                                        }}
+                                        sx={{ cursor: "pointer" }}>
+                                        <Box
+                                            display="flex"
+                                            flexDirection="column"
+                                            alignItems="center"
+                                            justifyContent="center"
+                                            bgcolor={selectedNode?.name === marker.name ? "#4caf50" : "primary.main"}
+                                            color="white"
+                                            borderRadius="16px"
+                                            padding="10px"
+                                            width="100%"
+                                            minWidth="265px"
+                                            minHeight="65px"
+                                            textAlign="center"
+                                            boxShadow={3}>
+                                            <Typography variant="h6">{marker.name}</Typography>
                                         </Box>
-                                    )}
-                                </Box>
-                            )
-                        ))}
+                                        {index < days[selectedDayIndex].markers.length - 1 && (
+                                            <Box ml={3} display="flex" alignItems="center">
+                                                <Box
+                                                    position="relative"
+                                                    width="2px"
+                                                    height="65px"
+                                                    bgcolor="#686879"
+                                                    mb={-2}
+                                                    sx={{
+                                                        "&::after": {
+                                                            content: '""',
+                                                            position: "absolute",
+                                                            bottom: 0,
+                                                            left: "50%",
+                                                            transform: "translateX(-50%)",
+                                                            borderLeft: "5px solid transparent",
+                                                            borderRight: "5px solid transparent",
+                                                            borderTop: "10px solid #686879"
+                                                        }
+                                                    }}
+                                                />
+                                                <Box display="flex" alignItems="center" ml={2}>
+                                                    {getTransportIcon(tripData.days[selectedDayIndex].transportationMode)}
+                                                    <Typography
+                                                        variant="body2"
+                                                        ml={1}
+                                                        color="#686879"
+                                                        sx={{
+                                                            width: '100px', // Set a fixed width
+                                                            whiteSpace: 'nowrap', // Prevent text from wrapping
+                                                            overflow: 'hidden', // Hide overflow text
+                                                            textOverflow: 'ellipsis' // Add ellipsis for overflow text
+                                                        }}
+                                                    >
+                                                        {days[selectedDayIndex].travelTimes[index]}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                )
+                        )}
                         <Typography variant="body1" mt={2} align="center" color="#686879">
                             Total Time: {calculateTotalTripDuration()}
                         </Typography>
@@ -393,41 +643,60 @@ const Trip = () => {
                             zoom={14}
                             center={mapCenter}
                             options={{ mapId: "651e26fab50abd83" }}>
-                            {days[selectedDayIndex].markers.map((marker, index) => (
-                                marker && (
-                                    <Marker
-                                        key={index}
-                                        position={marker.position}
-                                        label={marker.label}
-                                        onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
-                                    />
-                                )
-                            ))}
+                            {days[selectedDayIndex].markers.map(
+                                (marker, index) =>
+                                    marker && (
+                                        <Marker
+                                            key={index}
+                                            position={marker.position}
+                                            label={marker.label}
+                                            onClick={() =>
+                                                setSelectedNode(selectedNode?.name === marker.name ? null : marker)
+                                            }
+                                        />
+                                    )
+                            )}
                         </GoogleMap>
                         {selectedNode && (
-                            <Card mt={2} p={2} sx={{ minHeight: '400px', width: '100%', mt: 2 }}>
+                            <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
                                 <CardContent>
                                     <Typography variant="h6" gutterBottom>
                                         {selectedNode.name}
                                     </Typography>
-                                    <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: 'gray' }}>
+                                    <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                         {selectedNode.info}
                                     </Typography>
+                                    {selectedNode.types && (
+                                        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
+                                            <Typography variant="body1" sx={{ mt: 1 / 2 }}>
+                                                Types:
+                                            </Typography>
+                                            {selectedNode.types.map((tag, index) => (
+                                                <Chip
+                                                    // variant={selectedNode.type === tag ? "filled" : "outlined"}
+                                                    variant="outlined"
+                                                    color={selectedNode.type === tag ? "primary" : "default"}
+                                                    label={tag}
+                                                    key={index}
+                                                />
+                                            ))}
+                                        </Stack>
+                                    )}
                                     {selectedNode.label !== "1" && (
                                         <>
                                             <FormControl fullWidth variant="outlined" margin="normal">
-                                                <Typography variant="body1">
-                                                    Duration:
-                                                </Typography>
+                                                <Typography variant="body1">Duration:</Typography>
                                                 <Box display="flex">
                                                     <TextField
                                                         label="Hours"
                                                         type="number"
                                                         variant="outlined"
                                                         margin="normal"
-                                                        value={days[selectedDayIndex].durations[selectedNode.name]?.hours}
+                                                        value={
+                                                            days[selectedDayIndex].durations[selectedNode.name]?.hours
+                                                        }
                                                         onChange={handleHoursChange}
-                                                        style={{ marginRight: '10px' }}
+                                                        style={{ marginRight: "10px" }}
                                                         slotProps={{ htmlInput: { min: 0 } }}
                                                     />
                                                     <TextField
@@ -435,7 +704,9 @@ const Trip = () => {
                                                         type="number"
                                                         variant="outlined"
                                                         margin="normal"
-                                                        value={days[selectedDayIndex].durations[selectedNode.name]?.minutes}
+                                                        value={
+                                                            days[selectedDayIndex].durations[selectedNode.name]?.minutes
+                                                        }
                                                         onChange={handleMinutesChange}
                                                         slotProps={{ htmlInput: { min: 0 } }}
                                                     />
@@ -456,14 +727,14 @@ const Trip = () => {
                             </Card>
                         )}
                     </Box>
-                </Box>
-            </Box>
+                </Stack>
+            </Stack>
             <AddDayDialog
                 open={isDialogOpen}
                 onClose={() => setIsDialogOpen(false)}
                 onSave={handleSaveDay}
-                startingLocation={data.startingLocation.name}
-                previousDayDate={dayjs().format('YYYY-MM-DD')}
+                startingLocation={tripData.startingLocation.name}
+                previousDayDate={dayjs().format("YYYY-MM-DD")}
             />
         </LoadScript>
     );

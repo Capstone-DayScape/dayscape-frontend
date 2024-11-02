@@ -1,9 +1,9 @@
-import React from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import {
+    Alert,
     Box,
     Button,
     Checkbox,
-    Chip,
     FormControl,
     FormControlLabel,
     InputLabel,
@@ -15,58 +15,98 @@ import {
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { Autocomplete, LoadScript } from "@react-google-maps/api";
 import dayjs from "dayjs";
-import { LoadScript, Autocomplete } from "@react-google-maps/api";
+import React, { useEffect } from "react";
+import { getUserPreferences, translatePreferencesToTypes } from "../api";
+import { INFO_MESSAGE_VARIANT } from "./constants";
+import TagInput from "./tag-input"; // Determines the maximum number of destinations and tags per day
 
 const libraries = ["places"];
 
+// JSON structure to store data
+const tripData = {
+    startingDate: "",
+    startingLocation: {
+        address: "",
+        name: "",
+        latitude: null,
+        longitude: null
+    },
+    globalTags: [],
+    days: [
+        {
+            index: 0,
+            dayTags: [],
+            routeStops: [],
+            usePreviousStops: false,
+            transportationMode: ""
+        }
+    ]
+};
+
 export default function CreateTrip() {
-    // JSON structure to store data
-    const data = {
-        startingDate: "",
-        startingLocation: {
-            address: "",
-            name: "",
-            latitude: null,
-            longitude: null
-        },
-        transportationMode: "",
-        globalTags: [],
-        days: [
-            {
-                index: 0,
-                dayTags: [],
-                routeStops: [],
-                usePreviousStops: false
-            }
-        ]
-    };
     const [dateObject, setDateObject] = React.useState(dayjs());
     const [startingAddress, setStartingAddress] = React.useState("");
-    const [tagInput, setTagInput] = React.useState("");
     const [tags, setTags] = React.useState([]);
-    const [transportMode, setTransportMode] = React.useState("");
+    const [transportMode, setTransportMode] = React.useState("DRIVING"); // Default to DRIVING
     const [usePrevStops, setUsePrevStops] = React.useState(false);
+    const [infoMessage, setInfoMessage] = React.useState({ message: "", variant: "" });
+
+    const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 
     const autocompleteRef = React.useRef(null);
 
-    const saveData = () => {
-        const place = autocompleteRef.current.getPlace();
+    useEffect(() => {
+        const fetchData = async () => {
+            const accessToken = await getAccessTokenSilently();
 
-        if (place) {
-            data.startingLocation.name = place.name;
-            data.startingLocation.latitude = place.geometry.location.lat();
-            data.startingLocation.longitude = place.geometry.location.lng();
+            await getUserPreferences(accessToken, (response) => {
+                setTags(response.data);
+            });
+        };
+        fetchData().catch((err) => console.error(err));
+    }, [getAccessTokenSilently]);
+
+    const saveData = async () => {
+        setInfoMessage({ message: "Retrieving from data...", variant: INFO_MESSAGE_VARIANT.INFO });
+        try {
+            const place = autocompleteRef.current.getPlace();
+
+            if (place) {
+                tripData.startingLocation.name = place.name;
+                tripData.startingLocation.latitude = place.geometry.location.lat();
+                tripData.startingLocation.longitude = place.geometry.location.lng();
+            }
+
+            tripData.startingLocation.address = startingAddress;
+            tripData.startingDate = dateObject.hour(0).minute(0).second(0).millisecond(0).toISOString();
+            tripData.days[0].usePreviousStops = usePrevStops;
+            tripData.days[0].transportationMode = transportMode;
+
+            let accessToken;
+            if (isAuthenticated) {
+                setInfoMessage({ message: "Getting access token...", variant: INFO_MESSAGE_VARIANT.INFO });
+                accessToken = await getAccessTokenSilently();
+            } else {
+                accessToken = null;
+            }
+            setInfoMessage({ message: "Translating preferences to types...", variant: INFO_MESSAGE_VARIANT.INFO });
+            await translatePreferencesToTypes(accessToken, tags, (data) => {
+                data.matched_list = data.matched_list || undefined;
+                tripData.days[0].dayTags = data.matched_list;
+            });
+
+            // Stores data into session storage
+            setInfoMessage({ message: "Saving to session...", variant: INFO_MESSAGE_VARIANT.INFO });
+            window.sessionStorage.setItem("data", JSON.stringify(tripData));
+            setInfoMessage({ message: "Done.", variant: INFO_MESSAGE_VARIANT.SUCCESS });
+
+            // Go to trip page
+            window.location.pathname = "/trip";
+        } catch (error) {
+            setInfoMessage({ message: error.message, variant: INFO_MESSAGE_VARIANT.ERROR });
         }
-
-        data.startingLocation.address = startingAddress;
-        data.startingDate = dateObject.hour(0).minute(0).second(0).millisecond(0).toISOString();
-        data.days[0].dayTags = tags;
-        data.days[0].usePreviousStops = usePrevStops;
-        data.transportationMode = transportMode;
-
-        // Stores data into session storage
-        window.sessionStorage.setItem("data", JSON.stringify(data));
     };
 
     return (
@@ -108,49 +148,31 @@ export default function CreateTrip() {
                             value={transportMode}
                             onChange={(event) => setTransportMode(event.target.value)}>
                             <MenuItem value="DRIVING">Driving</MenuItem>
-                            <MenuItem value="TRANSIT">Transit</MenuItem>
+                            {/* <MenuItem value="TRANSIT">Transit</MenuItem> */}
                             <MenuItem value="BICYCLING">Bicycling</MenuItem>
                             <MenuItem value="WALKING">Walking</MenuItem>
                         </Select>
                     </FormControl>
-                    <Stack direction="row" spacing={2}>
-                        <TextField
-                            label="Tags"
-                            name="tags"
-                            value={tagInput}
-                            onChange={(e) => setTagInput(e.target.value)}
-                            sx={{ width: 2 / 3 }}
-                        />
-                        <Button
-                            variant="outlined"
-                            onClick={() => {
-                                if (tagInput.length > 0 && !tags.includes(tagInput)) {
-                                    setTags([...tags, tagInput]);
-                                }
-                            }}
-                            sx={{ width: 1 / 3 }}>
-                            Add Tag
-                        </Button>
-                    </Stack>
-                    {tags.length > 0 && (
-                        <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }} useFlexGap>
-                            {tags.map((tag, index) => (
-                                <Chip
-                                    label={tag}
-                                    key={index}
-                                    onDelete={() => setTags(tags.filter((tagStr) => tagStr !== tag))}
-                                />
-                            ))}
-                        </Stack>
-                    )}
+                    <TagInput
+                        onInfoMessage={(message) => setInfoMessage(message)}
+                        tagsValue={tags}
+                        onTagChange={(newTags) => setTags(newTags)}
+                    />
                     <FormControlLabel
                         control={
                             <Checkbox checked={usePrevStops} onChange={(e) => setUsePrevStops(e.target.checked)} />
                         }
                         label="Use Previous Stops"
                     />
-                    {startingAddress ? (
-                        <Button variant="contained" onClick={saveData} href="/trip">
+                    {infoMessage.message && (
+                        <Alert
+                            severity={infoMessage.variant}
+                            onClose={() => setInfoMessage({ message: "", variant: "" })}>
+                            {infoMessage.message}
+                        </Alert>
+                    )}
+                    {startingAddress && tags.length > 0 ? (
+                        <Button variant="contained" onClick={saveData}>
                             Create Trip
                         </Button>
                     ) : (
