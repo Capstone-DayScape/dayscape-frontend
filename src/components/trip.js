@@ -4,6 +4,8 @@ import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
+import CallIcon from '@mui/icons-material/Call';
+import PublicIcon from '@mui/icons-material/Public';
 import SaveIcon from "@mui/icons-material/Save";
 import {
     Box,
@@ -15,7 +17,9 @@ import {
     Stack,
     TextField,
     Tooltip,
-    Typography
+    Typography,
+    Button,
+    Rating
 } from "@mui/material";
 import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
@@ -37,8 +41,8 @@ export default function Trip() {
     const [days, setDays] = useState(
         existingTripData
             ? tripData.days.map((day) => {
-                  return { ...day.routeStops, placeResponses: [] };
-              })
+                    return { ...day.routeStops, placeResponses: [] };
+                })
             : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
     );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
@@ -104,7 +108,10 @@ export default function Trip() {
                     label: "1",
                     name: tripData.startingLocation.name,
                     info: tripData.startingLocation.address,
-                    rating: tripData.startingLocation.user_ratings_total || "N/A"
+                    rating: tripData.startingLocation.rating || "N/A",
+                    user_ratings_total: tripData.startingLocation.user_ratings_total || "N/A",
+                    phone: tripData.startingLocation.international_phone_number || "",
+                    website: tripData.startingLocation.website || "",
                 }
             ];
             setDays(newDays);
@@ -127,14 +134,13 @@ export default function Trip() {
             console.error("Google Maps Places API is not loaded.");
             return;
         }
-
+    
         let requestLeft = tripData.days[dayIndex].dayTags.length;
-
+    
         const service = new window.google.maps.places.PlacesService(document.createElement("div"));
         const tags = tripData.days[dayIndex].dayTags;
         const responses = [];
-
-        // Adjust the search radius based on the selected transportation mode
+    
         const transportMode = tripData.days[dayIndex].transportationMode;
         let radius;
         switch (transportMode) {
@@ -153,7 +159,7 @@ export default function Trip() {
             default:
                 radius = 1500;
         }
-
+    
         tags.forEach((tag) => {
             const request = {
                 location,
@@ -161,14 +167,13 @@ export default function Trip() {
                 type: tag,
                 rankBy: window.google.maps.places.RankBy.PROMINENCE
             };
-
-            // Makes the request to fetch nearby places
+    
             service.nearbySearch(request, (results, status) => {
                 const numTags = tripData.days[dayIndex].dayTags.length;
-
+    
                 if (status === window.google.maps.places.PlacesServiceStatus.OK) {
                     const sortedResults = results.sort((a, b) => b.rating - a.rating);
-
+    
                     responses.push({
                         tag: tag,
                         results: sortedResults,
@@ -177,8 +182,7 @@ export default function Trip() {
                 } else {
                     console.error("PlacesServiceStatus not OK:", status);
                 }
-
-                // Last request
+    
                 if (requestLeft === 1) {
                     if (!usePrevStops) {
                         for (let i = 0; i < responses.length; i++) {
@@ -187,90 +191,66 @@ export default function Trip() {
                             responses[i].resultIndex = 0;
                         }
                     }
-
-                    // Should stop if not enough destinations
-                    if (responses < MIN_DESTINATIONS_PER_DAY) {
+    
+                    if (responses.length < MIN_DESTINATIONS_PER_DAY) {
                         console.error(
                             `Requires ${MIN_DESTINATIONS_PER_DAY} minimum, got ${responses.length}. These are the responses:`
                         );
                         console.log(responses);
                         return;
                     }
-
-                    if (numTags < MIN_DESTINATIONS_PER_DAY) {
-                        const newDestinations = [];
-
-                        // Extracts new destinations from placesResponse
-                        for (let i = 0; i < MIN_DESTINATIONS_PER_DAY; i++) {
-                            const responseIdx = i % responses.length;
-                            newDestinations.push({
-                                tag: responses[responseIdx].tag,
-                                destination: responses[responseIdx].results[responses[responseIdx].resultIndex]
-                            });
-                            responses[responseIdx].resultIndex++;
-                        }
-
-                        try {
-                            const newMarkers = newDestinations.map((place, index) => ({
-                                position: {
-                                    lat: place.destination.geometry.location.lat(),
-                                    lng: place.destination.geometry.location.lng()
-                                },
-                                label: `${index + 2}`,
-                                type: place.tag,
-                                types: place.destination.types,
-                                name: place.destination.name,
-                                info: place.destination.vicinity,
-                                rating: place.destination.user_ratings_total,
-                                duration: { hours: 2, minutes: 0 }
-                            }));
-
-                            setDays((prevDays) => {
-                                const updatedDays = [...prevDays];
-                                updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
-                                updatedDays[dayIndex].placeResponses = responses;
-                                updatedDays[dayIndex].durations = {
-                                    ...updatedDays[dayIndex].durations,
-                                    ...newMarkers.reduce((acc, marker) => {
-                                        acc[marker.name] = { hours: 2, minutes: 0 };
-                                        return acc;
-                                    }, {})
-                                };
-                                return updatedDays;
-                            });
-                            calculateRoute(location, newMarkers, dayIndex, transportMode);
-                        } catch (error) {
-                            console.error(`newDestinations has undefined properties: ${error.message}`);
-                        }
-                    } else if (numTags > MAX_DESTINATIONS_PER_DAY) {
-                        // Should not happen unless backend sends over MAX_DESTINATIONS_PER_DAY
-                        console.log("Received too many destinations.");
-                    } else {
-                        const newDestinations = [];
-
-                        responses.forEach((response) => {
-                            newDestinations.push({
-                                tag: response.tag,
-                                destination: response.results[response.resultIndex]
-                            });
-                            response.resultIndex++;
+    
+                    const newDestinations = [];
+                    for (let i = 0; i < Math.min(MAX_DESTINATIONS_PER_DAY, Math.max(MIN_DESTINATIONS_PER_DAY, numTags)); i++) {
+                        const responseIdx = i % responses.length;
+                        newDestinations.push({
+                            tag: responses[responseIdx].tag,
+                            destination: responses[responseIdx].results[responses[responseIdx].resultIndex]
                         });
-
+                        responses[responseIdx].resultIndex++;
+                    }
+    
+                    const fetchPlaceDetails = (placeId) => {
+                        return new Promise((resolve, reject) => {
+                            service.getDetails({ placeId }, (place, status) => {
+                                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                                    resolve(place);
+                                } else {
+                                    reject(status);
+                                }
+                            });
+                        });
+                    };
+    
+                    const fetchAllDetails = async () => {
                         try {
-                            const newMarkers = newDestinations.map((place, index) => ({
+                            const detailedDestinations = await Promise.all(
+                                newDestinations.map(async (place) => {
+                                    const details = await fetchPlaceDetails(place.destination.place_id);
+                                    return {
+                                        ...place,
+                                        details
+                                    };
+                                })
+                            );
+    
+                            const newMarkers = detailedDestinations.map((place, index) => ({
                                 position: {
-                                    lat: place.destination.geometry.location.lat(),
-                                    lng: place.destination.geometry.location.lng()
+                                    lat: place.details.geometry.location.lat(),
+                                    lng: place.details.geometry.location.lng()
                                 },
                                 label: `${index + 2}`,
                                 type: place.tag,
-                                types: place.destination.types,
-                                name: place.destination.name,
-                                info: place.destination.vicinity,
-                                rating: place.destination.user_ratings_total,
+                                types: place.details.types,
+                                name: place.details.name,
+                                info: place.details.vicinity,
+                                rating: place.details.rating,
+                                user_ratings_total: place.details.user_ratings_total,
+                                phone: place.details.international_phone_number,
+                                website: place.details.website,
                                 duration: { hours: 2, minutes: 0 }
                             }));
-
+    
                             setDays((prevDays) => {
                                 const updatedDays = [...prevDays];
                                 updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
@@ -286,9 +266,11 @@ export default function Trip() {
                             });
                             calculateRoute(location, newMarkers, dayIndex, transportMode);
                         } catch (error) {
-                            console.error(`newDestinations has undefined properties: ${error.message}`);
+                            console.error(`Error fetching place details: ${error.message}`);
                         }
-                    }
+                    };
+    
+                    fetchAllDetails();
                 }
                 requestLeft--;
             });
@@ -451,7 +433,10 @@ export default function Trip() {
                     label: "1",
                     name: tripData.startingLocation.name,
                     info: tripData.startingLocation.address,
-                    rating: tripData.startingLocation.user_ratings_total || "N/A"
+                    rating: tripData.startingLocation.rating || "N/A",
+                    user_ratings_total: tripData.startingLocation.user_ratings_total || "N/A",
+                    phone: tripData.startingLocation.international_phone_number || "",
+                    website: tripData.startingLocation.website || ""
                 }
             ],
             routePath: [],
@@ -460,7 +445,7 @@ export default function Trip() {
             notes: {},
             placeResponses: []
         };
-
+    
         const newTripData = tripData;
         newTripData.days.push({
             index: newDayIndex,
@@ -470,9 +455,9 @@ export default function Trip() {
             transportationMode: newDay.transportMode
         });
         window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
-
+    
         fetchNearbyPlaces(mapCenter, newDayIndex, newDay.usePrevStops);
-
+    
         setDays((prevDays) => [...prevDays, newDayData]);
         setSelectedDayIndex(newDayIndex);
         setIsDialogOpen(false);
@@ -711,12 +696,48 @@ export default function Trip() {
                         {selectedNode && (
                             <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
                                 <CardContent>
-                                    <Typography variant="h6" gutterBottom>
-                                        {selectedNode.name}
-                                    </Typography>
+                                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                                        <Typography variant="h6" gutterBottom>
+                                            {selectedNode.name}
+                                        </Typography>
+                                        {(selectedNode.phone?.trim() || selectedNode.website?.trim()) && (
+                                            <Box display="flex" gap={1}>
+                                                {selectedNode.phone?.trim() && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="primary"
+                                                        href={`tel:${selectedNode.phone}`}
+                                                        sx={{ textTransform: 'none' }}
+                                                        startIcon={<CallIcon />}
+                                                    >
+                                                        Call
+                                                    </Button>
+                                                )}
+                                                {selectedNode.website?.trim() && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="primary"
+                                                        href={selectedNode.website}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        sx={{ textTransform: 'none' }}
+                                                        startIcon={<PublicIcon />}
+                                                    >
+                                                        Website
+                                                    </Button>
+                                                )}
+                                            </Box>
+                                        )}
+                                    </Box>
                                     <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                         {selectedNode.info}
                                     </Typography>
+                                    {!isNaN(parseFloat(selectedNode.rating)) && (
+                                        <Box display="flex" alignItems="center" sx={{ mt: -0.75, mb: 2, color: "gray" }}>
+                                            <Typography variant="body1" gutterBottom></Typography>
+                                            <Rating value={selectedNode.rating} readOnly precision={0.5} />
+                                        </Box>
+                                    )}
                                     {selectedNode.types && (
                                         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
                                             <Typography variant="body1" sx={{ mt: 1 / 2 }}>
