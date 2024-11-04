@@ -1,7 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { Alert, Box, Button, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
 import React, { useState, useEffect } from "react";
-import { getTestMessage, getTrip, getUserPreferences, saveUserPreferences, translatePreferencesToTypes } from "../api.js";
+import { getTestMessage, getUserPreferences, saveUserPreferences, translatePreferencesToTypes } from "../api.js";
 import TagInput from "../components/tag-input";
 import { INFO_MESSAGE_VARIANT } from "./constants";
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from "@mui/material";
@@ -212,15 +212,10 @@ const MyTripsTab = ({ value, index }) => {
     }, [getAccessTokenSilently]);
 
     const handleEditTrip = async (tripId, tripName) => {
-        const accessToken = await getAccessTokenSilently();
-
-        await getTrip(accessToken, tripId, (tripData) => {
-            localStorage.setItem("trip_id", tripId);
-            localStorage.setItem("trip_name", tripName);
-            localStorage.setItem("trip_data", JSON.stringify(tripData));
-
-            window.location.href = "/trip"; // Redirect to the trip page
-        });
+	// This tells us the current trip to be be edited by the /trip
+	// page
+        localStorage.setItem("trip_id", tripId);
+        window.location.href = "/trip"; // Redirect to the trip page
     };
 
     return (
