@@ -1,30 +1,30 @@
 import { useAuth0 } from "@auth0/auth0-react";
+import CallIcon from "@mui/icons-material/Call";
 import CheckBoxOutlinedIcon from "@mui/icons-material/CheckBoxOutlined";
 import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
-import CallIcon from '@mui/icons-material/Call';
-import PublicIcon from '@mui/icons-material/Public';
+import PublicIcon from "@mui/icons-material/Public";
 import SaveIcon from "@mui/icons-material/Save";
 import {
     Box,
+    Button,
     Card,
     CardContent,
     Chip,
     FormControl,
     IconButton,
+    Rating,
     Stack,
     TextField,
     Tooltip,
-    Typography,
-    Button,
-    Rating
+    Typography
 } from "@mui/material";
 import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
 import React, { useState, useRef, useEffect } from "react";
-import { saveTrip } from "../api";
+import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 
@@ -41,8 +41,8 @@ export default function Trip() {
     const [days, setDays] = useState(
         existingTripData
             ? tripData.days.map((day) => {
-                    return { ...day.routeStops, placeResponses: [] };
-                })
+                  return { ...day.routeStops, placeResponses: [] };
+              })
             : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
     );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
@@ -111,7 +111,7 @@ export default function Trip() {
                     rating: tripData.startingLocation.rating || "N/A",
                     user_ratings_total: tripData.startingLocation.user_ratings_total || "N/A",
                     phone: tripData.startingLocation.international_phone_number || "",
-                    website: tripData.startingLocation.website || "",
+                    website: tripData.startingLocation.website || ""
                 }
             ];
             setDays(newDays);
@@ -134,13 +134,13 @@ export default function Trip() {
             console.error("Google Maps Places API is not loaded.");
             return;
         }
-    
+
         let requestLeft = tripData.days[dayIndex].dayTags.length;
-    
+
         const service = new window.google.maps.places.PlacesService(document.createElement("div"));
         const tags = tripData.days[dayIndex].dayTags;
         const responses = [];
-    
+
         const transportMode = tripData.days[dayIndex].transportationMode;
         let radius;
         switch (transportMode) {
@@ -159,7 +159,7 @@ export default function Trip() {
             default:
                 radius = 1500;
         }
-    
+
         tags.forEach((tag) => {
             const request = {
                 location,
@@ -167,13 +167,13 @@ export default function Trip() {
                 type: tag,
                 rankBy: window.google.maps.places.RankBy.PROMINENCE
             };
-    
+
             service.nearbySearch(request, (results, status) => {
                 const numTags = tripData.days[dayIndex].dayTags.length;
-    
+
                 if (status === window.google.maps.places.PlacesServiceStatus.OK) {
                     const sortedResults = results.sort((a, b) => b.rating - a.rating);
-    
+
                     responses.push({
                         tag: tag,
                         results: sortedResults,
@@ -182,7 +182,7 @@ export default function Trip() {
                 } else {
                     console.error("PlacesServiceStatus not OK:", status);
                 }
-    
+
                 if (requestLeft === 1) {
                     if (!usePrevStops) {
                         for (let i = 0; i < responses.length; i++) {
@@ -191,7 +191,7 @@ export default function Trip() {
                             responses[i].resultIndex = 0;
                         }
                     }
-    
+
                     if (responses < MIN_DESTINATIONS_PER_DAY) {
                         console.error(
                             `Requires ${MIN_DESTINATIONS_PER_DAY} minimum, got ${responses.length}. These are the responses:`
@@ -199,7 +199,7 @@ export default function Trip() {
                         console.log(responses);
                         return;
                     }
-    
+
                     const newDestinations = [];
                     for (let i = 0; i < Math.min(MAX_DESTINATIONS_PER_DAY, Math.max(MIN_DESTINATIONS_PER_DAY, numTags)); i++) {
                         const responseIdx = i % responses.length;
@@ -209,7 +209,7 @@ export default function Trip() {
                         });
                         responses[responseIdx].resultIndex++;
                     }
-    
+
                     const fetchPlaceDetails = (placeId) => {
                         return new Promise((resolve, reject) => {
                             service.getDetails({ placeId }, (place, status) => {
@@ -221,7 +221,7 @@ export default function Trip() {
                             });
                         });
                     };
-    
+
                     const fetchAllDetails = async () => {
                         try {
                             const detailedDestinations = await Promise.all(
@@ -233,7 +233,7 @@ export default function Trip() {
                                     };
                                 })
                             );
-    
+
                             const newMarkers = detailedDestinations.map((place, index) => ({
                                 position: {
                                     lat: place.details.geometry.location.lat(),
@@ -250,7 +250,7 @@ export default function Trip() {
                                 website: place.details.website,
                                 duration: { hours: 2, minutes: 0 }
                             }));
-    
+
                             setDays((prevDays) => {
                                 const updatedDays = [...prevDays];
                                 updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...newMarkers];
@@ -269,7 +269,7 @@ export default function Trip() {
                             console.error(`Error fetching place details: ${error.message}`);
                         }
                     };
-    
+
                     fetchAllDetails();
                 }
                 requestLeft--;
@@ -445,7 +445,7 @@ export default function Trip() {
             notes: {},
             placeResponses: []
         };
-    
+
         const newTripData = tripData;
         newTripData.days.push({
             index: newDayIndex,
@@ -455,9 +455,9 @@ export default function Trip() {
             transportationMode: newDay.transportMode
         });
         window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
-    
+
         fetchNearbyPlaces(mapCenter, newDayIndex, newDay.usePrevStops);
-    
+
         setDays((prevDays) => [...prevDays, newDayData]);
         setSelectedDayIndex(newDayIndex);
         setIsDialogOpen(false);
@@ -518,10 +518,7 @@ export default function Trip() {
     };
 
     return (
-        <LoadScript
-            googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
-            libraries={libraries}
-            onLoad={handleLoad}>
+        <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
             <Stack direction="column">
                 <Stack
                     direction="row"
@@ -644,9 +641,7 @@ export default function Trip() {
                                                     }}
                                                 />
                                                 <Box display="flex" alignItems="center" ml={2}>
-                                                    {getTransportIcon(
-                                                        tripData.days[selectedDayIndex].transportationMode
-                                                    )}
+                                                    {getTransportIcon(tripData.days[selectedDayIndex].transportationMode)}
                                                     <Typography
                                                         variant="body2"
                                                         ml={1}
@@ -686,9 +681,7 @@ export default function Trip() {
                                             key={index}
                                             position={marker.position}
                                             label={marker.label}
-                                            onClick={() =>
-                                                setSelectedNode(selectedNode?.name === marker.name ? null : marker)
-                                            }
+                                            onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
                                         />
                                     )
                             )}
@@ -707,9 +700,8 @@ export default function Trip() {
                                                         variant="outlined"
                                                         color="primary"
                                                         href={`tel:${selectedNode.phone}`}
-                                                        sx={{ textTransform: 'none' }}
-                                                        startIcon={<CallIcon />}
-                                                    >
+                                                        sx={{ textTransform: "none" }}
+                                                        startIcon={<CallIcon />}>
                                                         Call
                                                     </Button>
                                                 )}
@@ -720,9 +712,8 @@ export default function Trip() {
                                                         href={selectedNode.website}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        sx={{ textTransform: 'none' }}
-                                                        startIcon={<PublicIcon />}
-                                                    >
+                                                        sx={{ textTransform: "none" }}
+                                                        startIcon={<PublicIcon />}>
                                                         Website
                                                     </Button>
                                                 )}
@@ -764,9 +755,7 @@ export default function Trip() {
                                                         type="number"
                                                         variant="outlined"
                                                         margin="normal"
-                                                        value={
-                                                            days[selectedDayIndex].durations[selectedNode.name]?.hours
-                                                        }
+                                                        value={days[selectedDayIndex].durations[selectedNode.name]?.hours}
                                                         onChange={handleHoursChange}
                                                         style={{ marginRight: "10px" }}
                                                         slotProps={{ htmlInput: { min: 0 } }}
@@ -776,9 +765,7 @@ export default function Trip() {
                                                         type="number"
                                                         variant="outlined"
                                                         margin="normal"
-                                                        value={
-                                                            days[selectedDayIndex].durations[selectedNode.name]?.minutes
-                                                        }
+                                                        value={days[selectedDayIndex].durations[selectedNode.name]?.minutes}
                                                         onChange={handleMinutesChange}
                                                         slotProps={{ htmlInput: { min: 0 } }}
                                                     />
@@ -855,12 +842,15 @@ const SaveTripButton = ({ tripName }) => {
                 id: tripID,
                 name: tripName
             };
-            console.log(tripInfo);
 
             await saveTrip(accessToken, tripInfo, (tripIDResponse) => {
                 console.log(`Trip saved successfully! ID: ${tripIDResponse}`);
                 tripID = tripIDResponse;
                 setIcon(<CheckBoxOutlinedIcon color="success" />);
+            });
+            await getTrip(accessToken, tripID, (tripData) => {
+                localStorage.setItem("trip_data", JSON.stringify(tripData));
+                localStorage.setItem("trip_name", tripData.name);
             });
         } catch (error) {
             console.error(error);
