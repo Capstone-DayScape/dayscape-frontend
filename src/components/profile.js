@@ -1,7 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { Alert, Box, Button, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
 import React, { useState, useEffect } from "react";
-import { getTestMessage, getUserPreferences, saveUserPreferences, translatePreferencesToTypes } from "../api.js";
+import { getTestMessage, getTrip, getUserPreferences, saveUserPreferences, translatePreferencesToTypes } from "../api.js";
 import TagInput from "../components/tag-input";
 import { INFO_MESSAGE_VARIANT } from "./constants";
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from "@mui/material";
@@ -129,11 +129,7 @@ const MyTagsTab = ({ value, index }) => {
     return (
         <CustomTabPanel value={value} index={index}>
             <Typography variant="h5">My Preferences</Typography>
-            <TagInput
-                onInfoMessage={(message) => setInfoMessage(message)}
-                tagsValue={tags}
-                onTagChange={handleTagChange}
-            />
+            <TagInput onInfoMessage={(message) => setInfoMessage(message)} tagsValue={tags} onTagChange={handleTagChange} />
             {infoMessage.message && (
                 <Alert severity={infoMessage.variant} onClose={() => setInfoMessage({ variant: "", message: "" })}>
                     {infoMessage.message}
@@ -217,24 +213,14 @@ const MyTripsTab = ({ value, index }) => {
 
     const handleEditTrip = async (tripId, tripName) => {
         const accessToken = await getAccessTokenSilently();
-        try {
-            const response = await axios.post(
-                `${config.backend_endpoint}/api/private/get_trip?trip_id=` + tripId,
-                null,
-                {
-                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
-                }
-            );
-            if (response.status === 200) {
-                const tripData = response.data;
-                localStorage.setItem("trip_id", tripId);
-                localStorage.setItem("trip_name", tripName);
-                localStorage.setItem("trip_data", JSON.stringify(tripData));
-                window.location.href = "/trip"; // Redirect to the trip page
-            }
-        } catch (error) {
-            console.error("Error fetching trip data: ", error);
-        }
+
+        await getTrip(accessToken, tripId, (tripData) => {
+            localStorage.setItem("trip_id", tripId);
+            localStorage.setItem("trip_name", tripName);
+            localStorage.setItem("trip_data", JSON.stringify(tripData));
+
+            window.location.href = "/trip"; // Redirect to the trip page
+        });
     };
 
     return (
@@ -285,8 +271,8 @@ const MyTripsTab = ({ value, index }) => {
                 <DialogTitle>Confirm Deletion</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        Are you sure you want to delete the trip "{currentTripToDelete?.name}? This is final and cannot
-                        be reversed!"
+                        Are you sure you want to delete the trip "{currentTripToDelete?.name}? This is final and cannot be
+                        reversed!"
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
