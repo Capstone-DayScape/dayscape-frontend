@@ -192,7 +192,7 @@ export default function Trip() {
                         }
                     }
     
-                    if (responses.length < MIN_DESTINATIONS_PER_DAY) {
+                    if (responses < MIN_DESTINATIONS_PER_DAY) {
                         console.error(
                             `Requires ${MIN_DESTINATIONS_PER_DAY} minimum, got ${responses.length}. These are the responses:`
                         );
