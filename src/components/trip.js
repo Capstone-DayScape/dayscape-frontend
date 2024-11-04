@@ -527,7 +527,7 @@ export default function Trip() {
                     <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
                     <SaveTripButton tripData={tripData} tripName={tripName} />
                 </Stack>
-                <Box display="flex" alignItems="center" justifyContent="center" mb={4} mt={2}>
+                <Box display="flex" alignItems="center" justifyContent="center" mt={2}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
                             <React.Fragment key={index}>
@@ -581,6 +581,11 @@ export default function Trip() {
                         </Box>
                     </Box>
                 </Box>
+                <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="h5" gutterBottom sx={{ justifySelf: "center" }}>
+                        {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
+                    </Typography>
+                </Stack>
                 <Stack direction="row">
                     <Box
                         width="25%"
