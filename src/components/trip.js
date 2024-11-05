@@ -27,6 +27,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
+import "./trip.css";
 
 const libraries = ["places", "marker", "geometry"];
 
@@ -519,14 +520,23 @@ export default function Trip() {
 
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
-            <Stack direction="column">
+            <Stack direction="column" className="trip-container">
                 <Stack
                     direction="row"
                     spacing={3}
                     sx={{ justifyContent: "space-between", alignItems: "center", mt: 3, height: 50 }}>
-                    <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
-                    <SaveTripButton tripData={tripData} tripName={tripName} />
+                    <Box flex={1} display="flex" justifyContent="center">
+                        <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
+                    </Box>
+                    <Box>
+                        <SaveTripButton tripData={tripData} tripName={tripName} />
+                    </Box>
                 </Stack>
+                <Box display="flex" alignItems="center" justifyContent="center" mt={2}>
+                    <Typography variant="h5" gutterBottom>
+                        {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
+                    </Typography>
+                </Box>
                 <Box display="flex" alignItems="center" justifyContent="center" mt={2}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
@@ -581,20 +591,8 @@ export default function Trip() {
                         </Box>
                     </Box>
                 </Box>
-                <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="h5" gutterBottom sx={{ justifySelf: "center" }}>
-                        {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
-                    </Typography>
-                </Stack>
-                <Stack direction="row">
-                    <Box
-                        width="25%"
-                        padding="10px"
-                        display="flex"
-                        flexDirection="column"
-                        alignItems="center"
-                        overflow="auto"
-                        mr={4}>
+                <Stack direction={{ xs: "column", md: "row" }} className="trip-content">
+                    <Box className="nodes-container">
                         {days[selectedDayIndex].markers.map(
                             (marker, index) =>
                                 marker && (
@@ -607,7 +605,8 @@ export default function Trip() {
                                         onClick={() => {
                                             setSelectedNode(selectedNode?.name === marker.name ? null : marker);
                                         }}
-                                        sx={{ cursor: "pointer" }}>
+                                        sx={{ cursor: "pointer" }}
+                                        className="node">
                                         <Box
                                             display="flex"
                                             flexDirection="column"
@@ -669,13 +668,13 @@ export default function Trip() {
                             Total Time: {calculateTotalTripDuration()}
                         </Typography>
                     </Box>
-                    <Box flex={1} display="flex" flexDirection="column" alignItems="center" width="75%">
+                    <Box flex={1} display="flex" flexDirection="column" alignItems="center" className="map-container">
                         <GoogleMap
                             id="map"
                             onLoad={(map) => {
                                 mapRef.current = map;
                             }}
-                            mapContainerStyle={{ height: "400px", width: "100%" }}
+                            mapContainerStyle={{ width: "100%", height: "100%" }} // Ensure the map container has explicit width and height
                             zoom={14}
                             center={mapCenter}
                             options={{ mapId: "651e26fab50abd83" }}>
@@ -820,7 +819,7 @@ const TripTitle = ({ tripName, onTripNameChange }) => {
                     autoFocus
                 />
             ) : (
-                <Typography variant="h3" onClick={() => setIsEditing(true)} sx={{ "&:hover": { cursor: "pointer" } }}>
+                <Typography variant="h3" className="trip-title" onClick={() => setIsEditing(true)} sx={{ "&:hover": { cursor: "pointer" } }}>
                     {tripName}
                 </Typography>
             )}

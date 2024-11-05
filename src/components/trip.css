@@ -1,0 +1,78 @@
+.trip-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 25px;
+}
+
+.trip-title {
+    font-size: 2em;
+    margin-bottom: 20px;
+    text-align: center; /* Center the trip title */
+}
+
+.map-container {
+    flex: 1;
+    height: 400px;
+    margin-bottom: 20px;
+}
+
+.map {
+    width: 100%;
+    height: 100%;
+}
+
+.nodes-container {
+    flex: 0 0 25%;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto; /* Allow vertical scrolling */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    margin-right: 4px;
+}
+
+.node {
+    width: 100%;
+    min-width: 265px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.trip-content {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    gap: 20px; /* Add some space between the nodes and the map */
+}
+
+@media (max-width: 768px) {
+    .trip-title {
+        font-size: 1.5em;
+    }
+
+    .map-container {
+        height: 300px;
+        width: 100%;
+    }
+
+    .nodes-container {
+        width: 100%;
+        margin-right: 0;
+    }
+
+    .trip-content {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .trip-title {
+        font-size: 1.2em;
+    }
+
+    .map-container {
+        height: 200px;
+    }
+}
