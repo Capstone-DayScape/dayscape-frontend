@@ -23,7 +23,8 @@ import {
     Stack,
     TextField,
     Tooltip,
-    Typography
+    Typography,
+    Alert
 } from "@mui/material";
 import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
@@ -41,6 +42,7 @@ const existingTripID = localStorage.getItem("trip_id");
 let tripID = existingTripID ? existingTripID : "";
 
 export default function Trip() {
+    const { getAccessTokenSilently } = useAuth0();
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [days, setDays] = useState(
         existingTripData
@@ -57,6 +59,21 @@ export default function Trip() {
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
 
+    const [hasEditPermission, setHasEditPermission] = useState(true);
+
+    const fetchEditPermissions = useCallback(async () => {
+    const accessToken = await getAccessTokenSilently();
+	try {
+            const response = await axios.get(`${config.backend_endpoint}/api/private/get_can_edit?trip_id=${tripID}`, {
+		headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+            });
+            setHasEditPermission(response.data.can_edit);
+	} catch (error) {
+            console.log("Failed to determine if the user can edit the trip.", error);
+            setHasEditPermission(false);
+	}
+    }, [getAccessTokenSilently]);
+
     // Whether user is the trip owner and should have a "share" button
     const [hasSharePermission, setHasSharePermission] = useState(false);
     // Whether sharing dialog is open
@@ -66,8 +83,6 @@ export default function Trip() {
     // viewers and editors for the trip sharing dialog
     const [viewers, setViewers] = useState('');
     const [editors, setEditors] = useState('');
-
-    const { getAccessTokenSilently } = useAuth0();	
 
     const fetchPermissions = useCallback(async () => {
     const accessToken = await getAccessTokenSilently();
@@ -118,7 +133,8 @@ export default function Trip() {
     // attempt to enable sharing dialog
     useEffect(() => {
         fetchTripData();
-    }, [getAccessTokenSilently, fetchPermissions, fetchTripData]);
+	fetchEditPermissions();
+    }, [getAccessTokenSilently, fetchPermissions, fetchTripData, fetchEditPermissions]);
 
     // Attempt to refresh trip data and permissions once on page load/reload. If user
     // is not logged in this will just do nothing
@@ -600,13 +616,20 @@ export default function Trip() {
 
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
+        {!hasEditPermission && (
+            <Box sx={{ width: '100%', mb: 2 }}>
+                <Alert severity="warning">
+                    You are in read-only mode and cannot edit this trip.
+                </Alert>
+            </Box>
+        )}
             <Stack direction="column">
                 <Stack
                     direction="row"
                     spacing={3}
                     sx={{ justifyContent: "space-between", alignItems: "center", mt: 3, height: 50 }}>
                     <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
-                    <SaveTripButton tripData={tripData} tripName={tripName} />
+		    {hasEditPermission && (<SaveTripButton tripName={tripName} />)}
                 </Stack>
                 <Box display="flex" alignItems="center" justifyContent="center" mt={2}>
                     <Box display="flex" alignItems="center">
@@ -645,21 +668,21 @@ export default function Trip() {
                                 backgroundColor: "#686879"
                             }}
                         />
-                        <Box
-                            onClick={handleAddDay}
-                            sx={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: "50%",
-                                backgroundColor: "#777777",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "white",
-                                cursor: "pointer"
-                            }}>
-                            +
-                        </Box>
+			<Box
+			    onClick={hasEditPermission ? handleAddDay : null}
+			    sx={{
+				width: 40,
+				height: 40,
+				borderRadius: "50%",
+				backgroundColor: hasEditPermission ? "#777777" : "#cccccc",
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				color: "white",
+				cursor: hasEditPermission ? "pointer" : "not-allowed"
+			    }}>
+			    +
+			</Box>
                     </Box>
                 </Box>
                 <Stack direction="row" justifyContent="space-between">
@@ -935,7 +958,7 @@ const TripTitle = ({ tripName, onTripNameChange }) => {
     );
 };
 
-const SaveTripButton = ({ tripName }) => {
+const SaveTripButton = ({ tripName, disabled }) => {
     const [icon, setIcon] = useState(<SaveIcon />);
 
     const { getAccessTokenSilently } = useAuth0();
@@ -945,6 +968,7 @@ const SaveTripButton = ({ tripName }) => {
     }, [tripName]);
 
     const handleSave = async () => {
+	if (disabled) return;
         try {
             const tripData = JSON.parse(sessionStorage.getItem("trip_data"));
             const accessToken = await getAccessTokenSilently();
@@ -969,9 +993,9 @@ const SaveTripButton = ({ tripName }) => {
         }
     };
 
-    return (
+        return (
         <Tooltip title="Save Trip">
-            <IconButton variant="outlined" onClick={handleSave}>
+            <IconButton variant="outlined" onClick={handleSave} disabled={disabled}>
                 {icon}
             </IconButton>
         </Tooltip>
