@@ -72,6 +72,16 @@ describe('API Tests', function () {
 	expect(response.status).to.equal(200);
     });
 
+    it('should get ownership status', async function() {
+	const response = await axios.get(
+	    `${baseUrl}/get_is_trip_owner?trip_id=` + test_trip_id,
+	    getAuthHeaders()
+	);
+	expect(response.status).to.equal(200);
+	expect(response.data).to.deep.equal({ is_owner: true });
+    });
+
+
     it('should add viewers and editors', async function() {
 	const editors = ["editor1@example.com", "editor2@example.com"];
 	// Normally frontend wouldn't allow you add your own email to
@@ -116,7 +126,6 @@ describe('API Tests', function () {
 	expect(found_element).to.deep.equal(expected_element)
     });
 
-
     it('should get list of shared trips', async function() {
 	const response = await axios.get(
 	    `${baseUrl}/get_shared_trips_list`,
@@ -141,7 +150,6 @@ describe('API Tests', function () {
 	);
 	expect(response.status).to.equal(200);
 	expect(response.data.viewers).to.deep.equal([ 'viewer1@example.com', 'nweconop@uncg.edu' ])
-	// console.log(response.json);
     });
 
     it('should get the correct trip editors', async function() {
@@ -185,7 +193,6 @@ describe('API Tests', function () {
     });
 
     // random user preferences
-    // const user_preferences = { random: Math.random().toString(36).substring(2), data: Math.random().toString(36).substring(2) };
     const user_preferences = [ "random", Math.random().toString(36).substring(2), "data", Math.random().toString(36).substring(2)];
 
     it('should save global user preferences', async function() {
