@@ -7,6 +7,10 @@ import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import PublicIcon from "@mui/icons-material/Public";
 import SaveIcon from "@mui/icons-material/Save";
+import ShareIcon from "@mui/icons-material/Share";
+import config from "../config";
+import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import axios from 'axios';
 import {
     Box,
     Button,
@@ -23,7 +27,7 @@ import {
 } from "@mui/material";
 import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
@@ -52,6 +56,75 @@ export default function Trip() {
 
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
+
+    // Whether user is the trip owner and should have a "share" button
+    const [hasSharePermission, setHasSharePermission] = useState(false);
+    // Whether sharing dialog is open
+    const [isSharingDialogOpen, setIsSharingDialogOpen] = useState(false);
+
+    
+    // viewers and editors for the trip sharing dialog
+    const [viewers, setViewers] = useState('');
+    const [editors, setEditors] = useState('');
+
+    const { getAccessTokenSilently } = useAuth0();	
+
+    const fetchPermissions = useCallback(async () => {
+	const accessToken = await getAccessTokenSilently();
+	try {
+            const viewersResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_viewers?trip_id=${tripID}`, {
+		headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+            });
+            const editorsResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_editors?trip_id=${tripID}`, {
+		headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+            });
+
+            const viewersArray = Array.isArray(viewersResponse.data.viewers) ? viewersResponse.data.viewers : [];
+            const editorsArray = Array.isArray(editorsResponse.data.editors) ? editorsResponse.data.editors : [];
+            setViewers(viewersArray.join(', '));
+            setEditors(editorsArray.join(', '));
+            setHasSharePermission(true); 
+	} catch (error) {
+            console.log("Failed to fetch editors or viewers. If the user is not the owner of the trip or is not logged in, this is expected.", error);
+            setHasSharePermission(false); 
+	}
+    }, [getAccessTokenSilently]);
+
+    const fetchTripData = useCallback(async () => {
+            try {
+                const accessToken = await getAccessTokenSilently();
+                if (tripID) {
+                    await getTrip(accessToken, tripID, (tripData) => {
+                        sessionStorage.setItem("trip_data", JSON.stringify(tripData));
+                        localStorage.setItem("trip_data", JSON.stringify(tripData));
+			console.log("tripData recieved: ");
+			console.log(tripData);
+			fetchPermissions();
+                    });
+		}
+		            } catch (error) {
+                console.error("Failed to fetch trip data:", error);
+            }
+    }, [getAccessTokenSilently, fetchPermissions]);    
+
+    // attempt to enable sharing dialog
+    useEffect(() => {
+        fetchTripData();
+    }, [getAccessTokenSilently, fetchPermissions, fetchTripData]);
+
+    // Attempt to refresh trip data and permissions once on page load/reload. If user
+    // is not logged in this will just do nothing
+
+  const handleOpenSharingDialog = async () => {
+	if (tripID) {
+            await fetchPermissions(); // refresh permissions before opening the dialog
+            setIsSharingDialogOpen(true);	    
+	}
+    };
+
+    const handleCloseSharingDialog = () => {
+        setIsSharingDialogOpen(false);
+    };
 
     useEffect(() => {
         if (tripData) {
@@ -792,7 +865,33 @@ export default function Trip() {
                         )}
                     </Box>
                 </Stack>
-            </Stack>
+        </Stack>
+
+	    {hasSharePermission && (
+                <Tooltip title="Share Trip">
+                    <IconButton
+                        onClick={handleOpenSharingDialog}
+                        sx={{
+                            position: "fixed",
+                            bottom: 16,
+                            right: 16,
+                            backgroundColor: "white",
+                            boxShadow: 1 }}>
+                        <ShareIcon />
+                    </IconButton>
+                </Tooltip>
+            )}
+
+            <SharingDialog
+                open={isSharingDialogOpen}
+                onClose={handleCloseSharingDialog}
+                viewers={viewers}
+                editors={editors}
+		tripID={tripID}
+                setViewers={setViewers}
+                setEditors={setEditors}
+            />
+	
             <AddDayDialog
                 open={isDialogOpen}
                 onClose={() => setIsDialogOpen(false)}
@@ -868,5 +967,62 @@ const SaveTripButton = ({ tripName }) => {
                 {icon}
             </IconButton>
         </Tooltip>
+    );
+};
+
+// Dialog to edit emails of viewers and editors
+const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors, tripId }) => {
+    const { getAccessTokenSilently } = useAuth0();
+
+    const handleSave = async () => {
+        const accessToken = await getAccessTokenSilently();
+        try {
+            await axios.post(
+		// convert string of emails back into list for API
+                `${config.backend_endpoint}/api/private/save_trip?trip_id=${tripID}&view=${viewers
+                    .split(",")
+                    .map((v) => v.trim())
+                    .join(", ")}&edit=${editors
+                    .split(",")
+                    .map((e) => e.trim())
+                    .join(", ")}`,
+                null,		// Not modifying trip data
+                {headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json"}});
+            onClose();
+        } catch (error) {
+            console.error("Failed to save editors or viewers:", error);
+        }
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose}>
+            <DialogTitle>Share Trip</DialogTitle>
+            <DialogContent>
+                <TextField
+                    label="Viewers"
+                    fullWidth
+                    variant="outlined"
+                    margin="dense"
+                    value={viewers}
+                    onChange={(e) => setViewers(e.target.value)}
+                />
+                <TextField
+                    label="Editors"
+                    fullWidth
+                    variant="outlined"
+                    margin="dense"
+                    value={editors}
+                    onChange={(e) => setEditors(e.target.value)}
+                />
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>Cancel</Button>
+                <Button onClick={handleSave} color="primary">
+                    Save
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 };
