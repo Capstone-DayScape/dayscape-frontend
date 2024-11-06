@@ -6,6 +6,8 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import PublicIcon from "@mui/icons-material/Public";
+import ReplayIcon from "@mui/icons-material/Replay";
+import SyncIcon from "@mui/icons-material/Sync";
 import SaveIcon from "@mui/icons-material/Save";
 import {
     Box,
@@ -15,6 +17,7 @@ import {
     Chip,
     FormControl,
     IconButton,
+    Paper,
     Rating,
     Stack,
     TextField,
@@ -57,7 +60,7 @@ export default function Trip() {
         if (tripData) {
             const newTripData = tripData;
             newTripData.days = days.map((day, index) => {
-                // Removes placeResponses because it causes many deprecated errors that can't be removed/ignored.
+                // Removes placeResponses because it shows many deprecated errors that can't be removed/ignored.
                 const { placeResponses, ...rest } = day;
 
                 return { ...newTripData.days[index], routeStops: { ...rest } };
@@ -517,6 +520,14 @@ export default function Trip() {
         return colors;
     };
 
+    const handleRegenerateDay = () => {
+        console.log("Regenerate Day");
+    };
+
+    function handleRegenerateNode() {
+        console.log("Regenerate Node");
+    }
+
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
             <Stack direction="column">
@@ -581,20 +592,20 @@ export default function Trip() {
                         </Box>
                     </Box>
                 </Box>
-                <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="h5" gutterBottom sx={{ justifySelf: "center" }}>
-                        {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
-                    </Typography>
+                <Stack direction="row" spacing={4} sx={{ mt: 1, mb: 2, alignItems: "center" }}>
+                    <Box width={1 / 4} px="10px">
+                        <Typography variant="h5" justifySelf="center">
+                            {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
+                        </Typography>
+                    </Box>
+                    <Tooltip title="Regenerate Day" placement="right" arrow>
+                        <IconButton onClick={handleRegenerateDay}>
+                            <ReplayIcon />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
                 <Stack direction="row">
-                    <Box
-                        width="25%"
-                        padding="10px"
-                        display="flex"
-                        flexDirection="column"
-                        alignItems="center"
-                        overflow="auto"
-                        mr={4}>
+                    <Box width="25%" px="10px" display="flex" flexDirection="column" alignItems="center" overflow="auto" mr={4}>
                         {days[selectedDayIndex].markers.map(
                             (marker, index) =>
                                 marker && (
@@ -698,32 +709,43 @@ export default function Trip() {
                                         <Typography variant="h6" gutterBottom>
                                             {selectedNode.name}
                                         </Typography>
-                                        {(selectedNode.phone?.trim() || selectedNode.website?.trim()) && (
-                                            <Box display="flex" gap={1}>
-                                                {selectedNode.phone?.trim() && (
-                                                    <Button
-                                                        variant="outlined"
-                                                        color="primary"
-                                                        href={`tel:${selectedNode.phone}`}
-                                                        sx={{ textTransform: "none" }}
-                                                        startIcon={<CallIcon />}>
-                                                        Call
-                                                    </Button>
-                                                )}
-                                                {selectedNode.website?.trim() && (
-                                                    <Button
-                                                        variant="outlined"
-                                                        color="primary"
-                                                        href={selectedNode.website}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        sx={{ textTransform: "none" }}
-                                                        startIcon={<PublicIcon />}>
-                                                        Website
-                                                    </Button>
-                                                )}
-                                            </Box>
-                                        )}
+                                        <Box display="flex" gap={1}>
+                                            {selectedNode.type && (
+                                                <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
+                                                    <Tooltip
+                                                        title="Regenerate Node"
+                                                        placement="left"
+                                                        arrow
+                                                        sx={{ justifySelf: "start" }}>
+                                                        <IconButton onClick={handleRegenerateNode} color="primary">
+                                                            <SyncIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Paper>
+                                            )}
+                                            {selectedNode.website?.trim() && (
+                                                <Button
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    href={selectedNode.website}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    sx={{ textTransform: "none" }}
+                                                    startIcon={<PublicIcon />}>
+                                                    Website
+                                                </Button>
+                                            )}
+                                            {selectedNode.phone?.trim() && (
+                                                <Button
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    href={`tel:${selectedNode.phone}`}
+                                                    sx={{ textTransform: "none" }}
+                                                    startIcon={<CallIcon />}>
+                                                    Call
+                                                </Button>
+                                            )}
+                                        </Box>
                                     </Box>
                                     <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                         {selectedNode.info}
@@ -741,7 +763,6 @@ export default function Trip() {
                                             </Typography>
                                             {selectedNode.types.map((tag, index) => (
                                                 <Chip
-                                                    // variant={selectedNode.type === tag ? "filled" : "outlined"}
                                                     variant="outlined"
                                                     color={selectedNode.type === tag ? "primary" : "default"}
                                                     label={tag}
@@ -839,6 +860,9 @@ const SaveTripButton = ({ tripName }) => {
 
     const handleSave = async () => {
         try {
+            window.onbeforeunload = () => {
+                return "";
+            };
             const tripData = JSON.parse(sessionStorage.getItem("trip_data"));
             const accessToken = await getAccessTokenSilently();
 
@@ -863,7 +887,7 @@ const SaveTripButton = ({ tripName }) => {
     };
 
     return (
-        <Tooltip title="Save Trip">
+        <Tooltip title="Save Trip" placement="left" arrow>
             <IconButton variant="outlined" onClick={handleSave}>
                 {icon}
             </IconButton>
