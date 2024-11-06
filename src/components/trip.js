@@ -70,25 +70,33 @@ export default function Trip() {
     const { getAccessTokenSilently } = useAuth0();	
 
     const fetchPermissions = useCallback(async () => {
-	const accessToken = await getAccessTokenSilently();
-	try {
+    const accessToken = await getAccessTokenSilently();
+    try {
+        const response = await axios.get(`${config.backend_endpoint}/api/private/get_is_trip_owner?trip_id=${tripID}`, {
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+        });
+
+        if (response.data.is_owner) {
+            setHasSharePermission(true);
             const viewersResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_viewers?trip_id=${tripID}`, {
-		headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
             });
             const editorsResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_editors?trip_id=${tripID}`, {
-		headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
             });
 
             const viewersArray = Array.isArray(viewersResponse.data.viewers) ? viewersResponse.data.viewers : [];
             const editorsArray = Array.isArray(editorsResponse.data.editors) ? editorsResponse.data.editors : [];
             setViewers(viewersArray.join(', '));
             setEditors(editorsArray.join(', '));
-            setHasSharePermission(true); 
-	} catch (error) {
-            console.log("Failed to fetch editors or viewers. If the user is not the owner of the trip or is not logged in, this is expected.", error);
-            setHasSharePermission(false); 
-	}
-    }, [getAccessTokenSilently]);
+        } else {
+            setHasSharePermission(false);
+        }
+    } catch (error) {
+        console.log("Failed to determine if the user is the owner of the trip.", error);
+        setHasSharePermission(false);
+    }
+}, [getAccessTokenSilently]);
 
     const fetchTripData = useCallback(async () => {
             try {
