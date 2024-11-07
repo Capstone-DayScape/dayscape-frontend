@@ -28,6 +28,7 @@ import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 import "./trip.css";
+import "./styles.css";
 
 const libraries = ["places", "marker", "geometry"];
 
@@ -42,8 +43,8 @@ export default function Trip() {
     const [days, setDays] = useState(
         existingTripData
             ? tripData.days.map((day) => {
-                  return { ...day.routeStops, placeResponses: [] };
-              })
+                return { ...day.routeStops, placeResponses: [] };
+            })
             : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
     );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
@@ -520,24 +521,19 @@ export default function Trip() {
 
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
-            <Stack direction="column" className="trip-container">
+            <Stack direction="column" className={`trip-container fade-in`}>
                 <Stack
                     direction="row"
                     spacing={3}
                     sx={{ justifyContent: "space-between", alignItems: "center", mt: 3, height: 50 }}>
-                    <Box flex={1} display="flex" justifyContent="center">
+                    <Box display="flex" justifyContent="flex-start">
                         <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
                     </Box>
-                    <Box>
+                    <Box display="flex" justifyContent="flex-end">
                         <SaveTripButton tripData={tripData} tripName={tripName} />
                     </Box>
                 </Stack>
-                <Box display="flex" alignItems="center" justifyContent="center" mt={2}>
-                    <Typography variant="h5" gutterBottom>
-                        {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
-                    </Typography>
-                </Box>
-                <Box display="flex" alignItems="center" justifyContent="center" mt={2}>
+                <Box display="flex" alignItems="center" justifyContent="center" my={3}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
                             <React.Fragment key={index}>
@@ -592,7 +588,12 @@ export default function Trip() {
                     </Box>
                 </Box>
                 <Stack direction={{ xs: "column", md: "row" }} className="trip-content">
-                    <Box className="nodes-container">
+                    <Box className="nodes-container" sx={{ mt: -8 }}>
+                        <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
+                            <Typography variant="h5" gutterBottom color="#686879">
+                                {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
+                            </Typography>
+                        </Box>
                         {days[selectedDayIndex].markers.map(
                             (marker, index) =>
                                 marker && (
@@ -668,7 +669,7 @@ export default function Trip() {
                             Total Time: {calculateTotalTripDuration()}
                         </Typography>
                     </Box>
-                    <Box flex={1} display="flex" flexDirection="column" alignItems="center" className="map-container">
+                    <Box flex={1} alignItems="center" className={`map-container ${selectedNode ? 'map-container-half' : ''}`}>
                         <GoogleMap
                             id="map"
                             onLoad={(map) => {
@@ -691,7 +692,7 @@ export default function Trip() {
                             )}
                         </GoogleMap>
                         {selectedNode && (
-                            <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
+                            <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }} className="node-info-popup">
                                 <CardContent>
                                     <Box display="flex" justifyContent="space-between" alignItems="center">
                                         <Typography variant="h6" gutterBottom>
