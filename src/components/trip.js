@@ -736,13 +736,13 @@ export default function Trip() {
                     </Box>
                 </Box>
                 <Stack direction={{ xs: "column", md: "row" }} className={`trip-content fade-in-fast`}>
-                    <Box className="nodes-container" sx={{ mt: -8 }}>
+                    <Box className="nodes-container" sx={{ mt: -9 }}>
                         <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
                             <Typography variant="h5" gutterBottom color="#686879">
                                 {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
                             </Typography>
                             <Tooltip title="Regenerate Day" placement="right" arrow>
-                                <IconButton onClick={handleRegenerateDay}>
+                                <IconButton onClick={handleRegenerateDay} sx={{ ml: 1.2, mb: 1 }}>
                                     <ReplayIcon/>
                                 </IconButton>
                             </Tooltip>
@@ -975,6 +975,7 @@ export default function Trip() {
                 handleHoursChange={handleHoursChange}
                 handleMinutesChange={handleMinutesChange}
                 handleNotesChange={handleNotesChange}
+                handleRegenerateNode={handleRegenerateNode}
             />
         </LoadScript>
     );

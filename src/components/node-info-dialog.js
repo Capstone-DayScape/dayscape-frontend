@@ -2,8 +2,14 @@ import React from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box, TextField, Chip, Stack, FormControl, Rating, IconButton } from '@mui/material';
 import CallIcon from '@mui/icons-material/Call';
 import PublicIcon from '@mui/icons-material/Public';
+import SyncIcon from '@mui/icons-material/Sync';
 
-const NodeInfoDialog = ({ open, onClose, selectedNode, days, selectedDayIndex, handleHoursChange, handleMinutesChange, handleNotesChange }) => {
+const NodeInfoDialog = ({ open, onClose, selectedNode, days, selectedDayIndex, handleHoursChange, handleMinutesChange, handleNotesChange, handleRegenerateNode }) => {
+    const handleRegenerateAndClose = () => {
+        handleRegenerateNode();
+        onClose();
+    };
+    
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>
@@ -12,6 +18,22 @@ const NodeInfoDialog = ({ open, onClose, selectedNode, days, selectedDayIndex, h
                         {selectedNode?.name}
                     </Typography>
                     <Box display="flex" gap={3}>
+                        {selectedNode?.type && (
+                            <IconButton
+                                color="primary"
+                                onClick={handleRegenerateAndClose}
+                                sx={{
+                                    border: '1px solid',
+                                    borderRadius: '50%',
+                                    padding: '8px',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                    },
+                                }}
+                            >
+                                <SyncIcon />
+                            </IconButton>
+                        )}
                         {selectedNode?.phone?.trim() && (
                             <IconButton
                                 color="primary"
