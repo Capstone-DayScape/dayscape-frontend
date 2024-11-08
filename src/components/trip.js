@@ -28,8 +28,8 @@ import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import NodeInfoDialog from "../components/node-info-dialog"; // Import the NodeInfoDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
-import "./trip.css";
-import "./styles.css";
+import "./styles/trip.css";
+import "./styles/styles.css";
 
 const libraries = ["places", "marker", "geometry"];
 

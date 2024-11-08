@@ -1,6 +1,6 @@
 import React from "react";
 import { Typography, Box, Button, Stack } from "@mui/material";
-import './styles.css'; 
+import './styles/styles.css'; 
 
 const Home = () => {
     return (

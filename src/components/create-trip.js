@@ -21,7 +21,7 @@ import React, { useEffect } from "react";
 import { getUserPreferences, translatePreferencesToTypes } from "../api";
 import { INFO_MESSAGE_VARIANT } from "./constants";
 import TagInput from "./tag-input"; // Determines the maximum number of destinations and tags per day
-import "./create-trip.css";
+import "./styles/create-trip.css";
 
 const libraries = ["places"];
 
