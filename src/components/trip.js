@@ -533,26 +533,17 @@ export default function Trip() {
     };
 
     const handleRegenerateNode = async () => {
-        console.log("Regenerate Node");
-        console.log(selectedNode);
-
         const nodePlaceResponse = days[selectedDayIndex].placeResponses.find((response) => response.tag === selectedNode.type);
-        console.log(nodePlaceResponse);
-
-        const nodeToBeReplaced = days[selectedDayIndex].markers[parseInt(selectedNode.label) - 1];
 
         const getNextPlace = (nodePlaceResponse) => {
             const result = nodePlaceResponse.results[nodePlaceResponse.resultIndex];
             nodePlaceResponse.resultIndex++;
             return result;
         };
-
         const nextPlace = getNextPlace(nodePlaceResponse);
-        console.log(nextPlace);
 
         try {
             const nextPlaceDetails = await fetchPlaceDetails(nextPlace.place_id);
-            console.log(nextPlaceDetails);
 
             const newMarker = {
                 info: nextPlaceDetails.vicinity,
@@ -567,22 +558,30 @@ export default function Trip() {
                 user_ratings_total: nextPlaceDetails.user_ratings_total,
                 website: nextPlaceDetails.website
             };
+
+            const newMarkers = days[selectedDayIndex].markers.map((marker, index) => {
+                if (index === parseInt(selectedNode.label) - 1) {
+                    return { ...marker, ...newMarker };
+                }
+                return marker;
+            });
+            // Remove starting location from markers
+            const [_, ...rest] = newMarkers;
+
             setDays((prevState) => {
                 const newDayData = [...prevState];
-                newDayData[selectedDayIndex].markers[parseInt(selectedNode.label) - 1] = { ...nodeToBeReplaced, ...newMarker };
+                newDayData[selectedDayIndex].markers = newMarkers;
                 delete newDayData[selectedDayIndex].durations[selectedNode.name]; // Remove the previous duration
                 newDayData[selectedDayIndex].durations[newMarker.name] = { hours: 2, minutes: 0 };
                 return newDayData;
             });
 
-            console.log({ ...nodeToBeReplaced, ...newMarker });
-            // const startingLocation = { lat: tripData.startingLocation.lat, lng: tripData.startingLocation.lng };
-            // calculateRoute(
-            //     startingLocation,
-            //     days[selectedDayIndex].markers,
-            //     selectedDayIndex,
-            //     tripData.days[selectedDayIndex].transportationMode
-            // );
+            const location = {
+                lat: tripData.startingLocation.latitude || 0,
+                lng: tripData.startingLocation.longitude || 0
+            };
+            calculateRoute(location, rest, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
+
             setSelectedNode(null);
         } catch (error) {
             console.error(error);
