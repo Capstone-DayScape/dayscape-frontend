@@ -67,7 +67,7 @@ const Layout = ({ children }) => {
             <Helmet>
                 <title>DayScape</title>
             </Helmet>
-            <AppBar position="static">
+            <AppBar position="sticky">
                 <Toolbar>
                     <Typography variant="h6" sx={{ display: { xs: 'none', md: 'block' } }}>
                         <Link href="/" color="white" underline="none">
