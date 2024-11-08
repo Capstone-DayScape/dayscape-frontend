@@ -213,7 +213,8 @@ export default function Trip() {
                             tag: responses[responseIdx].tag,
                             destination: responses[responseIdx].results[responses[responseIdx].resultIndex]
                         });
-                        responses[responseIdx].resultIndex++;
+                        responses[responseIdx].resultIndex =
+                            (responses[responseIdx].resultIndex + 1) % responses[responseIdx].results.length;
                     }
 
                     const fetchAllDetails = async () => {
@@ -537,7 +538,7 @@ export default function Trip() {
 
         const getNextPlace = (nodePlaceResponse) => {
             const result = nodePlaceResponse.results[nodePlaceResponse.resultIndex];
-            nodePlaceResponse.resultIndex++;
+            nodePlaceResponse.resultIndex = (nodePlaceResponse.resultIndex + 1) % nodePlaceResponse.results.length;
             return result;
         };
         const nextPlace = getNextPlace(nodePlaceResponse);
@@ -545,7 +546,7 @@ export default function Trip() {
         try {
             const nextPlaceDetails = await fetchPlaceDetails(nextPlace.place_id);
 
-            const newMarker = {
+            const newNode = {
                 info: nextPlaceDetails.vicinity,
                 name: nextPlaceDetails.name,
                 phone: nextPlaceDetails.international_phone_number,
@@ -561,7 +562,7 @@ export default function Trip() {
 
             const newMarkers = days[selectedDayIndex].markers.map((marker, index) => {
                 if (index === parseInt(selectedNode.label) - 1) {
-                    return { ...marker, ...newMarker };
+                    return { ...marker, ...newNode };
                 }
                 return marker;
             });
@@ -573,7 +574,7 @@ export default function Trip() {
                 const newDayData = [...prevState];
                 newDayData[selectedDayIndex].markers = newMarkers;
                 delete newDayData[selectedDayIndex].durations[selectedNode.name]; // Remove the previous duration
-                newDayData[selectedDayIndex].durations[newMarker.name] = { hours: 2, minutes: 0 };
+                newDayData[selectedDayIndex].durations[newNode.name] = { hours: 2, minutes: 0 };
                 return newDayData;
             });
 
