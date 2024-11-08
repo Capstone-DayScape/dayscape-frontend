@@ -566,6 +566,7 @@ export default function Trip() {
                 return marker;
             });
             // Remove starting location from markers
+            // eslint-disable-next-line no-unused-vars
             const [_, ...rest] = newMarkers;
 
             setDays((prevState) => {
