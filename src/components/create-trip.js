@@ -21,6 +21,7 @@ import React, { useEffect } from "react";
 import { getUserPreferences, translatePreferencesToTypes } from "../api";
 import { INFO_MESSAGE_VARIANT } from "./constants";
 import TagInput from "./tag-input"; // Determines the maximum number of destinations and tags per day
+import "./create-trip.css";
 
 const libraries = ["places"];
 
@@ -115,12 +116,12 @@ export default function CreateTrip() {
     };
 
     return (
-        <Box sx={{ width: 1 / 2, mx: "auto" }}>
+        <Box className="create-trip-container">
             <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <Typography variant="h2" sx={{ textAlign: "center" }} gutterBottom>
+                <Typography variant="h2" sx={{ textAlign: "center" }} gutterBottom className="fade-in" style={{ animationDelay: '0.2s' }}>
                     Create a new trip
                 </Typography>
-                <Stack direction="column" spacing={2}>
+                <Stack direction="column" spacing={2} className="fade-in" style={{ animationDelay: '0.3s' }}>
                     <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries}>
                         <Autocomplete
                             onLoad={(ref) => (autocompleteRef.current = ref)}

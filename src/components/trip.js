@@ -26,6 +26,7 @@ import dayjs from "dayjs";
 import React, { useState, useRef, useEffect } from "react";
 import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
+import NodeInfoDialog from "../components/node-info-dialog"; // Import the NodeInfoDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 import "./trip.css";
 import "./styles.css";
@@ -49,7 +50,8 @@ export default function Trip() {
     );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isAddDayDialogOpen, setIsAddDayDialogOpen] = useState(false);
+    const [isNodeInfoDialogOpen, setIsNodeInfoDialogOpen] = useState(false);
     const [tripName, setTripName] = useState(tripData.name ? tripData.name : "Untitled Trip");
 
     const polylineRef = useRef(null);
@@ -75,6 +77,24 @@ export default function Trip() {
             window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
         }
     }, [tripName]);
+
+    useEffect(() => {
+        if (selectedNode && window.innerWidth <= 768) {
+            setIsNodeInfoDialogOpen(true);
+        }
+    }, [selectedNode]);
+
+    useEffect(() => {
+        const handleResize = () => {
+            // Your resize logic here
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
 
     /**
      * Handles events after the Google Maps API has loaded.
@@ -403,7 +423,7 @@ export default function Trip() {
     };
 
     const handleAddDay = () => {
-        setIsDialogOpen(true);
+        setIsAddDayDialogOpen(true);
     };
 
     const getTransportIcon = (mode) => {
@@ -462,7 +482,7 @@ export default function Trip() {
 
         setDays((prevDays) => [...prevDays, newDayData]);
         setSelectedDayIndex(newDayIndex);
-        setIsDialogOpen(false);
+        setIsAddDayDialogOpen(false);
     };
 
     useEffect(() => {
@@ -521,7 +541,7 @@ export default function Trip() {
 
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
-            <Stack direction="column" className={`trip-container fade-in`}>
+            <Stack direction="column" className="trip-container">
                 <Stack
                     direction="row"
                     spacing={3}
@@ -587,7 +607,7 @@ export default function Trip() {
                         </Box>
                     </Box>
                 </Box>
-                <Stack direction={{ xs: "column", md: "row" }} className="trip-content">
+                <Stack direction={{ xs: "column", md: "row" }} className={`trip-content fade-in-fast`}>
                     <Box className="nodes-container" sx={{ mt: -8 }}>
                         <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
                             <Typography variant="h5" gutterBottom color="#686879">
@@ -669,7 +689,7 @@ export default function Trip() {
                             Total Time: {calculateTotalTripDuration()}
                         </Typography>
                     </Box>
-                    <Box flex={1} alignItems="center" className={`map-container ${selectedNode ? 'map-container-half' : ''}`}>
+                    <Box flex="1 1 auto" alignItems="center" className={`map-container ${selectedNode ? 'map-container-half' : ''}`}>
                         <GoogleMap
                             id="map"
                             onLoad={(map) => {
@@ -794,11 +814,24 @@ export default function Trip() {
                 </Stack>
             </Stack>
             <AddDayDialog
-                open={isDialogOpen}
-                onClose={() => setIsDialogOpen(false)}
+                open={isAddDayDialogOpen}
+                onClose={() => setIsAddDayDialogOpen(false)}
                 onSave={handleSaveDay}
                 startingLocation={tripData.startingLocation.name}
                 previousDayDate={dayjs().format("YYYY-MM-DD")}
+            />
+            <NodeInfoDialog
+                open={isNodeInfoDialogOpen}
+                onClose={() => {
+                    setIsNodeInfoDialogOpen(false);
+                    setSelectedNode(null); // Unselect the node
+                }}
+                selectedNode={selectedNode}
+                days={days}
+                selectedDayIndex={selectedDayIndex}
+                handleHoursChange={handleHoursChange}
+                handleMinutesChange={handleMinutesChange}
+                handleNotesChange={handleNotesChange}
             />
         </LoadScript>
     );
