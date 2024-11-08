@@ -89,7 +89,7 @@ export default function Trip() {
     const [viewers, setViewers] = useState('');
     const [editors, setEditors] = useState('');
 
-    const fetchPermissions = useCallback(async () => {
+    const fetchPermissions = useCallback(async (tripID) => {
 	if (!tripID) {
             // Skip checking permissions if there's no trip_id
             setHasSharePermission(true);
@@ -133,7 +133,7 @@ export default function Trip() {
                         localStorage.setItem("trip_data", JSON.stringify(tripData));
 			console.log("tripData recieved: ");
 			console.log(tripData);
-			fetchPermissions();
+			fetchPermissions(tripID);
                     });
 		}
 		            } catch (error) {
@@ -640,7 +640,7 @@ export default function Trip() {
                     spacing={3}
                     sx={{ justifyContent: "space-between", alignItems: "center", mt: 3, height: 50 }}>
                     <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
-		    {hasEditPermission && (<SaveTripButton tripName={tripName} />)}
+		    {hasEditPermission && (<SaveTripButton tripName={tripName} fetchPermissions={fetchPermissions} />)}
                 </Stack>
                 <Box display="flex" alignItems="center" justifyContent="center" mt={2}>
                     <Box display="flex" alignItems="center">
@@ -969,7 +969,7 @@ const TripTitle = ({ tripName, onTripNameChange }) => {
     );
 };
 
-const SaveTripButton = ({ tripName, disabled }) => {
+const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
     const [icon, setIcon] = useState(<SaveIcon />);
 
     const { getAccessTokenSilently } = useAuth0();
@@ -998,6 +998,7 @@ const SaveTripButton = ({ tripName, disabled }) => {
             await getTrip(accessToken, tripID, (tripData) => {
                 localStorage.setItem("trip_data", JSON.stringify(tripData));
                 localStorage.setItem("trip_name", tripData.name);
+		fetchPermissions();
             });
         } catch (error) {
             console.error(error);
