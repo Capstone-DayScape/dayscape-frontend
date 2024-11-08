@@ -171,6 +171,7 @@ export default function Trip() {
                         sessionStorage.setItem("trip_data", JSON.stringify(tripData));
                         localStorage.setItem("trip_data", JSON.stringify(tripData));
                         localStorage.setItem("trip_id", tripID);
+			setTripName(tripData.name || "Untitled Trip");
 
                         // reset the URL
                         navigate('/trip', { replace: true });
