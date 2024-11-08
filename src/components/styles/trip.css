@@ -44,15 +44,14 @@
 }
 
 .nodes-container {
-    flex: 0 0 25%;
+    flex: 1 1 auto; /* Allow the container to grow */
     padding: 10px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    overflow-y: auto; /* Allow vertical scrolling */
-    overflow-x: hidden; /* Prevent horizontal scrolling */
+    overflow: visible; /* Ensure no overflow is hidden */
     margin-right: 4px;
-    height: 100%; /* Make the nodes container take the full height */
+    height: auto; /* Allow the height to adjust based on content */
 }
 
 .node {
