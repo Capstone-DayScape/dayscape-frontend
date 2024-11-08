@@ -7,7 +7,9 @@ import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import PublicIcon from "@mui/icons-material/Public";
 import SaveIcon from "@mui/icons-material/Save";
+import { useNavigate } from 'react-router-dom';
 import ShareIcon from "@mui/icons-material/Share";
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import config from "../config";
 import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import axios from 'axios';
@@ -43,6 +45,8 @@ let tripID = existingTripID ? existingTripID : "";
 
 export default function Trip() {
     const { getAccessTokenSilently } = useAuth0();
+    const navigate = useNavigate();
+
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [days, setDays] = useState(
         existingTripData
@@ -125,21 +129,62 @@ export default function Trip() {
 }, [getAccessTokenSilently]);
 
     const fetchTripData = useCallback(async () => {
-            try {
-                const accessToken = await getAccessTokenSilently();
-                if (tripID) {
+	try {
+            const accessToken = await getAccessTokenSilently();
+            if (tripID) {
+		await getTrip(accessToken, tripID, (tripData) => {
+                    sessionStorage.setItem("trip_data", JSON.stringify(tripData));
+                    localStorage.setItem("trip_data", JSON.stringify(tripData));
+                    fetchPermissions(tripID);
+		});
+
+		// Fetch the trip name directly here
+		try {
+                    const response = await axios.get(`${config.backend_endpoint}/api/private/get_trip_name?trip_id=${tripID}`, {
+			headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                    });
+                    if (response.data.trip_name) {
+			setTripName(response.data.trip_name);
+			sessionStorage.setItem("trip_name", response.data.trip_name);
+                    }
+		} catch (error) {
+                    console.error("Failed to fetch trip name:", error);
+		}
+            }
+	} catch (error) {
+            console.error("Failed to fetch trip data:", error);
+	}
+    }, [getAccessTokenSilently, fetchPermissions]);
+
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const tripIDFromURL = params.get('id');
+
+        if (tripIDFromURL) {
+            tripID = tripIDFromURL;
+
+            (async () => {
+                try {
+                    const accessToken = await getAccessTokenSilently();
                     await getTrip(accessToken, tripID, (tripData) => {
                         sessionStorage.setItem("trip_data", JSON.stringify(tripData));
                         localStorage.setItem("trip_data", JSON.stringify(tripData));
-			console.log("tripData recieved: ");
-			console.log(tripData);
-			fetchPermissions(tripID);
+                        localStorage.setItem("trip_id", tripID);
+
+                        // reset the URL
+                        navigate('/trip', { replace: true });
                     });
-		}
-		            } catch (error) {
-                console.error("Failed to fetch trip data:", error);
-            }
-    }, [getAccessTokenSilently, fetchPermissions]);    
+                } catch (error) {
+                    console.error("Failed to fetch trip data:", error);
+                }
+            })();
+        }
+
+        // Call the existing functions that load data and permissions
+        fetchTripData();
+        fetchEditPermissions();
+    }, [getAccessTokenSilently, navigate, fetchEditPermissions, fetchTripData]);
 
     // attempt to enable sharing dialog
     useEffect(() => {
@@ -1014,8 +1059,8 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
     );
 };
 
-// Dialog to edit emails of viewers and editors
-const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors, tripId }) => {
+const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors, tripID }) => {
+    const [tripLink, setTripLink] = useState(`${config.frontend_endpoint}/trip?id=${tripID}`); 
     const { getAccessTokenSilently } = useAuth0();
 
     const handleSave = async () => {
@@ -1040,6 +1085,15 @@ const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors
         }
     };
 
+    const handleCopyLink = () => {
+	navigator.clipboard.writeText(tripLink).then(() => {
+            setCopied(true); // Set a state to true when copied successfully
+            setTimeout(() => setCopied(false), 2000); // Optional: Reset after 2 seconds
+	});
+    };
+
+// Add a state for tracking if the link was copied
+const [copied, setCopied] = useState(false);
     return (
         <Dialog open={open} onClose={onClose}>
             <DialogTitle>Share Trip</DialogTitle>
@@ -1060,6 +1114,21 @@ const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors
                     value={editors}
                     onChange={(e) => setEditors(e.target.value)}
                 />
+                <Box display="flex" alignItems="center" mt={2}>
+                    <TextField
+                        label="Trip Link"
+                        fullWidth
+                        variant="outlined"
+                        margin="dense"
+                        value={tripLink}
+                        InputProps={{
+                            readOnly: true,
+                        }}
+                    />
+		    <IconButton onClick={handleCopyLink} aria-label="copy trip link" color="primary">
+			{copied ? <CheckBoxOutlinedIcon color="success" /> : <ContentCopyIcon />}
+		    </IconButton>
+                </Box>
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancel</Button>
