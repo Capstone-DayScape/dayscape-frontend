@@ -118,10 +118,10 @@ export default function CreateTrip() {
     return (
         <Box className="create-trip-container">
             <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <Typography variant="h2" sx={{ textAlign: "center" }} gutterBottom className="fade-in" style={{ animationDelay: '0.2s' }}>
+                <Typography variant="h2" sx={{ textAlign: "center" }} gutterBottom className="fade-in">
                     Create a new trip
                 </Typography>
-                <Stack direction="column" spacing={2} className="fade-in" style={{ animationDelay: '0.3s' }}>
+                <Stack direction="column" spacing={2} className="fade-in" style={{ animationDelay: '0.15s' }}>
                     <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries}>
                         <Autocomplete
                             onLoad={(ref) => (autocompleteRef.current = ref)}
