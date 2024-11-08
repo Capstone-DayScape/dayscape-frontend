@@ -209,7 +209,6 @@ const MyTripsTab = ({ value, index }) => {
                     return { ...trip, canEdit: response.data.can_edit };
                 }));
                 setSharedTrips(sharedTripsWithPermissions);
-                    // setSharedTrips(sharedResponse.data);
                 }
             } catch (error) {
                 console.error("Error fetching shared trips:", error);

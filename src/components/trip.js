@@ -67,7 +67,7 @@ export default function Trip() {
 
     const fetchEditPermissions = useCallback(async () => {
 	if (!tripID) {
-            // Skip checking permissions if there's no trip_id
+            // Skip checking permissions if there's no trip_id yet
             setHasEditPermission(true);
             return;
 	}
@@ -95,7 +95,7 @@ export default function Trip() {
 
     const fetchPermissions = useCallback(async (tripID) => {
 	if (!tripID) {
-            // Skip checking permissions if there's no trip_id
+            // Skip checking permissions if there's no trip_id yet
             setHasSharePermission(true);
             return;
 	}
@@ -137,8 +137,6 @@ export default function Trip() {
                     localStorage.setItem("trip_data", JSON.stringify(tripData));
                     fetchPermissions(tripID);
 		});
-
-		// Fetch the trip name directly here
 		try {
                     const response = await axios.get(`${config.backend_endpoint}/api/private/get_trip_name?trip_id=${tripID}`, {
 			headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
@@ -193,10 +191,7 @@ export default function Trip() {
 	fetchEditPermissions();
     }, [getAccessTokenSilently, fetchPermissions, fetchTripData, fetchEditPermissions]);
 
-    // Attempt to refresh trip data and permissions once on page load/reload. If user
-    // is not logged in this will just do nothing
-
-  const handleOpenSharingDialog = async () => {
+    const handleOpenSharingDialog = async () => {
 	if (tripID) {
             await fetchPermissions(); // refresh permissions before opening the dialog
             setIsSharingDialogOpen(true);	    
@@ -1088,12 +1083,12 @@ const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors
 
     const handleCopyLink = () => {
 	navigator.clipboard.writeText(tripLink).then(() => {
-            setCopied(true); // Set a state to true when copied successfully
-            setTimeout(() => setCopied(false), 2000); // Optional: Reset after 2 seconds
+            setCopied(true); 
+            setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
 	});
     };
 
-// Add a state for tracking if the link was copied
+// whether sharing link was copied
 const [copied, setCopied] = useState(false);
     return (
         <Dialog open={open} onClose={onClose}>
