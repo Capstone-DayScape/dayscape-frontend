@@ -6,6 +6,7 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import PublicIcon from "@mui/icons-material/Public";
+import ReplayIcon from "@mui/icons-material/Replay";
 import SaveIcon from "@mui/icons-material/Save";
 import { useNavigate } from 'react-router-dom';
 import ShareIcon from "@mui/icons-material/Share";
@@ -13,6 +14,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import config from "../config";
 import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import axios from 'axios';
+import SyncIcon from "@mui/icons-material/Sync";
+
 import {
     Box,
     Button,
@@ -21,6 +24,7 @@ import {
     Chip,
     FormControl,
     IconButton,
+    Paper,
     Rating,
     Stack,
     TextField,
@@ -30,10 +34,14 @@ import {
 } from "@mui/material";
 import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
+
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
+import NodeInfoDialog from "../components/node-info-dialog"; // Import the NodeInfoDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
+import "./styles/trip.css";
+import "./styles/styles.css";
 
 const libraries = ["places", "marker", "geometry"];
 
@@ -51,17 +59,19 @@ export default function Trip() {
     const [days, setDays] = useState(
         existingTripData
             ? tripData.days.map((day) => {
-                  return { ...day.routeStops, placeResponses: [] };
-              })
+                return { ...day.routeStops, placeResponses: [] };
+            })
             : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
     );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isAddDayDialogOpen, setIsAddDayDialogOpen] = useState(false);
+    const [isNodeInfoDialogOpen, setIsNodeInfoDialogOpen] = useState(false);
     const [tripName, setTripName] = useState(tripData.name ? tripData.name : "Untitled Trip");
 
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
+    const placeService = useRef(null);
 
     const [hasEditPermission, setHasEditPermission] = useState(true);
 
@@ -206,7 +216,7 @@ export default function Trip() {
         if (tripData) {
             const newTripData = tripData;
             newTripData.days = days.map((day, index) => {
-                // Removes placeResponses because it causes many deprecated errors that can't be removed/ignored.
+                // Removes placeResponses because it shows many deprecated errors that can't be removed/ignored.
                 const { placeResponses, ...rest } = day;
 
                 return { ...newTripData.days[index], routeStops: { ...rest } };
@@ -222,6 +232,24 @@ export default function Trip() {
             window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
         }
     }, [tripName]);
+
+    useEffect(() => {
+        if (selectedNode && window.innerWidth <= 768) {
+            setIsNodeInfoDialogOpen(true);
+        }
+    }, [selectedNode]);
+
+    useEffect(() => {
+        const handleResize = () => {
+            // Your resize logic here
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
 
     /**
      * Handles events after the Google Maps API has loaded.
@@ -286,7 +314,9 @@ export default function Trip() {
 
         let requestLeft = tripData.days[dayIndex].dayTags.length;
 
-        const service = new window.google.maps.places.PlacesService(document.createElement("div"));
+        // Set service reference
+        placeService.current = new window.google.maps.places.PlacesService(document.createElement("div"));
+
         const tags = tripData.days[dayIndex].dayTags;
         const responses = [];
 
@@ -317,7 +347,7 @@ export default function Trip() {
                 rankBy: window.google.maps.places.RankBy.PROMINENCE
             };
 
-            service.nearbySearch(request, (results, status) => {
+            placeService.current.nearbySearch(request, (results, status) => {
                 const numTags = tripData.days[dayIndex].dayTags.length;
 
                 if (status === window.google.maps.places.PlacesServiceStatus.OK) {
@@ -345,7 +375,7 @@ export default function Trip() {
                         console.error(
                             `Requires ${MIN_DESTINATIONS_PER_DAY} minimum, got ${responses.length}. These are the responses:`
                         );
-                        console.log(responses);
+                        console.log("Response:", responses);
                         return;
                     }
 
@@ -356,20 +386,9 @@ export default function Trip() {
                             tag: responses[responseIdx].tag,
                             destination: responses[responseIdx].results[responses[responseIdx].resultIndex]
                         });
-                        responses[responseIdx].resultIndex++;
+                        responses[responseIdx].resultIndex =
+                            (responses[responseIdx].resultIndex + 1) % responses[responseIdx].results.length;
                     }
-
-                    const fetchPlaceDetails = (placeId) => {
-                        return new Promise((resolve, reject) => {
-                            service.getDetails({ placeId }, (place, status) => {
-                                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                                    resolve(place);
-                                } else {
-                                    reject(status);
-                                }
-                            });
-                        });
-                    };
 
                     const fetchAllDetails = async () => {
                         try {
@@ -422,6 +441,23 @@ export default function Trip() {
                     fetchAllDetails();
                 }
                 requestLeft--;
+            });
+        });
+    };
+
+    /**
+     * Gets the place details from the Google Places API.
+     * @param {string} placeId Place ID
+     * @returns {Promise<google.maps.places.PlaceResult>}
+     */
+    const fetchPlaceDetails = async (placeId) => {
+        return new Promise((resolve, reject) => {
+            placeService.current.getDetails({ placeId }, (place, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    resolve(place);
+                } else {
+                    reject(status);
+                }
             });
         });
     };
@@ -550,7 +586,7 @@ export default function Trip() {
     };
 
     const handleAddDay = () => {
-        setIsDialogOpen(true);
+        setIsAddDayDialogOpen(true);
     };
 
     const getTransportIcon = (mode) => {
@@ -609,7 +645,7 @@ export default function Trip() {
 
         setDays((prevDays) => [...prevDays, newDayData]);
         setSelectedDayIndex(newDayIndex);
-        setIsDialogOpen(false);
+        setIsAddDayDialogOpen(false);
     };
 
     useEffect(() => {
@@ -666,6 +702,122 @@ export default function Trip() {
         return colors;
     };
 
+    const handleRegenerateDay = async () => {
+        const { markers, placeResponses } = days[selectedDayIndex];
+        const [first, ...restMarkers] = markers;
+        const newNodes = [];
+
+        for (const marker of restMarkers) {
+            const response = placeResponses.find((response) => response.tag === marker.type);
+
+            const getNextPlace = (nodePlaceResponse) => {
+                const result = nodePlaceResponse.results[nodePlaceResponse.resultIndex];
+                nodePlaceResponse.resultIndex = (nodePlaceResponse.resultIndex + 1) % nodePlaceResponse.results.length;
+                return result;
+            };
+
+            const nextPlace = getNextPlace(response);
+
+            try {
+                const nextPlaceDetails = await fetchPlaceDetails(nextPlace.place_id);
+
+                const newNode = {
+                    info: nextPlaceDetails.vicinity,
+                    name: nextPlaceDetails.name,
+                    phone: nextPlaceDetails.international_phone_number,
+                    position: {
+                        lat: nextPlaceDetails.geometry.location.lat(),
+                        lng: nextPlaceDetails.geometry.location.lng()
+                    },
+                    rating: nextPlaceDetails.rating,
+                    types: nextPlaceDetails.types,
+                    user_ratings_total: nextPlaceDetails.user_ratings_total,
+                    website: nextPlaceDetails.website
+                };
+
+                newNodes.push(newNode);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        const newMarkers = newNodes.map((marker, index) => {
+            return { ...markers[index + 1], ...marker };
+        });
+
+        setDays((prevState) => {
+            const newDayData = [...prevState];
+            newDayData[selectedDayIndex].markers = [first, ...newMarkers];
+            newDayData[selectedDayIndex].durations = newMarkers.reduce((acc, marker) => {
+                acc[marker.name] = { hours: 2, minutes: 0 };
+                return acc;
+            }, {});
+            return newDayData;
+        });
+
+        const location = {
+            lat: tripData.startingLocation.latitude || 0,
+            lng: tripData.startingLocation.longitude || 0
+        };
+        calculateRoute(location, newMarkers, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
+    };
+
+    const handleRegenerateNode = async () => {
+        const nodePlaceResponse = days[selectedDayIndex].placeResponses.find((response) => response.tag === selectedNode.type);
+
+        const getNextPlace = (nodePlaceResponse) => {
+            const result = nodePlaceResponse.results[nodePlaceResponse.resultIndex];
+            nodePlaceResponse.resultIndex = (nodePlaceResponse.resultIndex + 1) % nodePlaceResponse.results.length;
+            return result;
+        };
+        const nextPlace = getNextPlace(nodePlaceResponse);
+
+        try {
+            const nextPlaceDetails = await fetchPlaceDetails(nextPlace.place_id);
+
+            const newNode = {
+                info: nextPlaceDetails.vicinity,
+                name: nextPlaceDetails.name,
+                phone: nextPlaceDetails.international_phone_number,
+                position: {
+                    lat: nextPlaceDetails.geometry.location.lat(),
+                    lng: nextPlaceDetails.geometry.location.lng()
+                },
+                rating: nextPlaceDetails.rating,
+                types: nextPlaceDetails.types,
+                user_ratings_total: nextPlaceDetails.user_ratings_total,
+                website: nextPlaceDetails.website
+            };
+
+            const newMarkers = days[selectedDayIndex].markers.map((marker, index) => {
+                if (index === parseInt(selectedNode.label) - 1) {
+                    return { ...marker, ...newNode };
+                }
+                return marker;
+            });
+            // Remove starting location from markers
+            // eslint-disable-next-line no-unused-vars
+            const [_, ...rest] = newMarkers;
+
+            setDays((prevState) => {
+                const newDayData = [...prevState];
+                newDayData[selectedDayIndex].markers = newMarkers;
+                delete newDayData[selectedDayIndex].durations[selectedNode.name]; // Remove the previous duration
+                newDayData[selectedDayIndex].durations[newNode.name] = { hours: 2, minutes: 0 };
+                return newDayData;
+            });
+
+            const location = {
+                lat: tripData.startingLocation.latitude || 0,
+                lng: tripData.startingLocation.longitude || 0
+            };
+            calculateRoute(location, rest, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
+
+            setSelectedNode(null);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
         {!hasEditPermission && (
@@ -676,14 +828,19 @@ export default function Trip() {
             </Box>
         )}
             <Stack direction="column">
+            <Stack direction="column" className="trip-container">
                 <Stack
                     direction="row"
                     spacing={3}
                     sx={{ justifyContent: "space-between", alignItems: "center", mt: 3, height: 50 }}>
-                    <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
-		    {hasEditPermission && (<SaveTripButton tripName={tripName} fetchPermissions={fetchPermissions} />)}
+                    <Box display="flex" justifyContent="flex-start">
+                        <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
+                    </Box>
+                    <Box display="flex" justifyContent="flex-end">
+		    {hasEditPermission && (<SaveTripButton tripName={tripName} fetchPermissions={fetchPermissions} />)}			
+                    </Box>
                 </Stack>
-                <Box display="flex" alignItems="center" justifyContent="center" mt={2}>
+                <Box display="flex" alignItems="center" justifyContent="center" my={3}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
                             <React.Fragment key={index}>
@@ -737,20 +894,18 @@ export default function Trip() {
 			</Box>
                     </Box>
                 </Box>
-                <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="h5" gutterBottom sx={{ justifySelf: "center" }}>
-                        {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
-                    </Typography>
-                </Stack>
-                <Stack direction="row">
-                    <Box
-                        width="25%"
-                        padding="10px"
-                        display="flex"
-                        flexDirection="column"
-                        alignItems="center"
-                        overflow="auto"
-                        mr={4}>
+                <Stack direction={{ xs: "column", md: "row" }} className={`trip-content fade-in-fast`}>
+                    <Box className="nodes-container" sx={{ mt: -8 }}>
+                        <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
+                            <Typography variant="h5" gutterBottom color="#686879">
+                                {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
+                            </Typography>
+                            <Tooltip title="Regenerate Day" placement="right" arrow>
+                                <IconButton onClick={handleRegenerateDay}>
+                                    <ReplayIcon/>
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
                         {days[selectedDayIndex].markers.map(
                             (marker, index) =>
                                 marker && (
@@ -763,7 +918,8 @@ export default function Trip() {
                                         onClick={() => {
                                             setSelectedNode(selectedNode?.name === marker.name ? null : marker);
                                         }}
-                                        sx={{ cursor: "pointer" }}>
+                                        sx={{ cursor: "pointer" }}
+                                        className="node">
                                         <Box
                                             display="flex"
                                             flexDirection="column"
@@ -825,13 +981,13 @@ export default function Trip() {
                             Total Time: {calculateTotalTripDuration()}
                         </Typography>
                     </Box>
-                    <Box flex={1} display="flex" flexDirection="column" alignItems="center" width="75%">
+                    <Box flex="1 1 auto" alignItems="center" className={`map-container ${selectedNode ? 'map-container-half' : ''}`}>
                         <GoogleMap
                             id="map"
                             onLoad={(map) => {
                                 mapRef.current = map;
                             }}
-                            mapContainerStyle={{ height: "400px", width: "100%" }}
+                            mapContainerStyle={{ width: "100%", height: "100%" }} // Ensure the map container has explicit width and height
                             zoom={14}
                             center={mapCenter}
                             options={{ mapId: "651e26fab50abd83" }}>
@@ -848,38 +1004,49 @@ export default function Trip() {
                             )}
                         </GoogleMap>
                         {selectedNode && (
-                            <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
+                            <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }} className="node-info-popup">
                                 <CardContent>
                                     <Box display="flex" justifyContent="space-between" alignItems="center">
                                         <Typography variant="h6" gutterBottom>
                                             {selectedNode.name}
-                                        </Typography>
-                                        {(selectedNode.phone?.trim() || selectedNode.website?.trim()) && (
-                                            <Box display="flex" gap={1}>
-                                                {selectedNode.phone?.trim() && (
-                                                    <Button
-                                                        variant="outlined"
-                                                        color="primary"
-                                                        href={`tel:${selectedNode.phone}`}
-                                                        sx={{ textTransform: "none" }}
-                                                        startIcon={<CallIcon />}>
-                                                        Call
-                                                    </Button>
-                                                )}
-                                                {selectedNode.website?.trim() && (
-                                                    <Button
-                                                        variant="outlined"
-                                                        color="primary"
-                                                        href={selectedNode.website}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        sx={{ textTransform: "none" }}
-                                                        startIcon={<PublicIcon />}>
-                                                        Website
-                                                    </Button>
-                                                )}
-                                            </Box>
-                                        )}
+                                        </Typography>{" "}
+                                        <Box display="flex" gap={1.5}>
+                                            {selectedNode.type && (
+                                                <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
+                                                    <Tooltip
+                                                        title="Regenerate Node"
+                                                        placement="left"
+                                                        arrow
+                                                        sx={{ justifySelf: "start" }}>
+                                                        <IconButton onClick={handleRegenerateNode} color="primary">
+                                                            <SyncIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Paper>
+                                            )}
+                                            {selectedNode.website?.trim() && (
+                                                <Button
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    href={selectedNode.website}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    sx={{ textTransform: "none" }}
+                                                    startIcon={<PublicIcon />}>
+                                                    Website
+                                                </Button>
+                                            )}
+                                            {selectedNode.phone?.trim() && (
+                                                <Button
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    href={`tel:${selectedNode.phone}`}
+                                                    sx={{ textTransform: "none" }}
+                                                    startIcon={<CallIcon />}>
+                                                    Call
+                                                </Button>
+                                            )}
+                                        </Box>
                                     </Box>
                                     <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                         {selectedNode.info}
@@ -897,7 +1064,6 @@ export default function Trip() {
                                             </Typography>
                                             {selectedNode.types.map((tag, index) => (
                                                 <Chip
-                                                    // variant={selectedNode.type === tag ? "filled" : "outlined"}
                                                     variant="outlined"
                                                     color={selectedNode.type === tag ? "primary" : "default"}
                                                     label={tag}
@@ -976,12 +1142,26 @@ export default function Trip() {
             />
 	
             <AddDayDialog
-                open={isDialogOpen}
-                onClose={() => setIsDialogOpen(false)}
+                open={isAddDayDialogOpen}
+                onClose={() => setIsAddDayDialogOpen(false)}
                 onSave={handleSaveDay}
                 startingLocation={tripData.startingLocation.name}
                 previousDayDate={dayjs().format("YYYY-MM-DD")}
             />
+            <NodeInfoDialog
+                open={isNodeInfoDialogOpen}
+                onClose={() => {
+                    setIsNodeInfoDialogOpen(false);
+                    setSelectedNode(null); // Unselect the node
+                }}
+                selectedNode={selectedNode}
+                days={days}
+                selectedDayIndex={selectedDayIndex}
+                handleHoursChange={handleHoursChange}
+                handleMinutesChange={handleMinutesChange}
+                handleNotesChange={handleNotesChange}
+            />
+        </Stack>
         </LoadScript>
     );
 }
@@ -1002,7 +1182,7 @@ const TripTitle = ({ tripName, onTripNameChange }) => {
                     autoFocus
                 />
             ) : (
-                <Typography variant="h3" onClick={() => setIsEditing(true)} sx={{ "&:hover": { cursor: "pointer" } }}>
+                <Typography variant="h3" className="trip-title" onClick={() => setIsEditing(true)} sx={{ "&:hover": { cursor: "pointer" } }}>
                     {tripName}
                 </Typography>
             )}
@@ -1046,9 +1226,9 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
         }
     };
 
-        return (
-        <Tooltip title="Save Trip">
-            <IconButton variant="outlined" onClick={handleSave} disabled={disabled}>
+    return (
+        <Tooltip title="Save Trip" placement="left" arrow>
+            <IconButton variant="outlined" onClick={handleSave} disabled={disabled}>		
                 {icon}
             </IconButton>
         </Tooltip>
