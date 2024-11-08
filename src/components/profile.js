@@ -254,10 +254,7 @@ const MyTripsTab = ({ value, index }) => {
                             <li key={trip.uuid}>
                                 {trip.name}
                                 <Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}>
-                                    Edit
-                                </Button>
-                                <Button onClick={() => handleOpenDeleteDialog(trip)} color="error">
-                                    Delete
+                                    View/Edit
                                 </Button>
                             </li>
                         ))}
