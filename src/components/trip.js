@@ -575,6 +575,16 @@ export default function Trip() {
             return { ...markers[index + 1], ...marker };
         });
 
+        setDays((prevState) => {
+            const newDayData = [...prevState];
+            newDayData[selectedDayIndex].markers = [first, ...newMarkers];
+            newDayData[selectedDayIndex].durations = newMarkers.reduce((acc, marker) => {
+                acc[marker.name] = { hours: 2, minutes: 0 };
+                return acc;
+            }, {});
+            return newDayData;
+        });
+
         const location = {
             lat: tripData.startingLocation.latitude || 0,
             lng: tripData.startingLocation.longitude || 0
