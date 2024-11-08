@@ -1060,7 +1060,7 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
 };
 
 const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors, tripID }) => {
-    const [tripLink, setTripLink] = useState(`${config.frontend_endpoint}/trip?id=${tripID}`); 
+    const tripLink = `${config.frontend_endpoint}/trip?id=${tripID}`;
     const { getAccessTokenSilently } = useAuth0();
 
     const handleSave = async () => {
