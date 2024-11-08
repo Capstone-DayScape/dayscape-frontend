@@ -735,26 +735,17 @@ export default function Trip() {
                         </Box>
                     </Box>
                 </Box>
-                <Stack direction="row" spacing={4} sx={{ mt: 1, mb: 2, alignItems: "center" }}>
-                    <Box width={1 / 4} px="10px">
-                        <Typography variant="h5" justifySelf="center">
-                            {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
-                        </Typography>
-                    </Box>
-                    <Tooltip title="Regenerate Day" placement="right" arrow>
-                        <IconButton onClick={handleRegenerateDay}>
-                            <ReplayIcon />
-                        </IconButton>
-                    </Tooltip>
-                </Stack>
-                <Stack direction="row">
-                    <Box width="25%" px="10px" display="flex" flexDirection="column" alignItems="center" overflow="auto" mr={4}>
                 <Stack direction={{ xs: "column", md: "row" }} className={`trip-content fade-in-fast`}>
                     <Box className="nodes-container" sx={{ mt: -8 }}>
                         <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
                             <Typography variant="h5" gutterBottom color="#686879">
                                 {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
                             </Typography>
+                            <Tooltip title="Regenerate Day" placement="right" arrow>
+                                <IconButton onClick={handleRegenerateDay}>
+                                    <ReplayIcon/>
+                                </IconButton>
+                            </Tooltip>
                         </Box>
                         {days[selectedDayIndex].markers.map(
                             (marker, index) =>
