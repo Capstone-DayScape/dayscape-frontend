@@ -7,8 +7,8 @@ import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import PublicIcon from "@mui/icons-material/Public";
 import ReplayIcon from "@mui/icons-material/Replay";
-import SyncIcon from "@mui/icons-material/Sync";
 import SaveIcon from "@mui/icons-material/Save";
+import SyncIcon from "@mui/icons-material/Sync";
 import {
     Box,
     Button,
@@ -55,6 +55,7 @@ export default function Trip() {
 
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
+    const placeService = useRef(null);
 
     useEffect(() => {
         if (tripData) {
@@ -140,7 +141,9 @@ export default function Trip() {
 
         let requestLeft = tripData.days[dayIndex].dayTags.length;
 
-        const service = new window.google.maps.places.PlacesService(document.createElement("div"));
+        // Set service reference
+        placeService.current = new window.google.maps.places.PlacesService(document.createElement("div"));
+
         const tags = tripData.days[dayIndex].dayTags;
         const responses = [];
 
@@ -171,7 +174,7 @@ export default function Trip() {
                 rankBy: window.google.maps.places.RankBy.PROMINENCE
             };
 
-            service.nearbySearch(request, (results, status) => {
+            placeService.current.nearbySearch(request, (results, status) => {
                 const numTags = tripData.days[dayIndex].dayTags.length;
 
                 if (status === window.google.maps.places.PlacesServiceStatus.OK) {
@@ -212,18 +215,6 @@ export default function Trip() {
                         });
                         responses[responseIdx].resultIndex++;
                     }
-
-                    const fetchPlaceDetails = (placeId) => {
-                        return new Promise((resolve, reject) => {
-                            service.getDetails({ placeId }, (place, status) => {
-                                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                                    resolve(place);
-                                } else {
-                                    reject(status);
-                                }
-                            });
-                        });
-                    };
 
                     const fetchAllDetails = async () => {
                         try {
@@ -276,6 +267,23 @@ export default function Trip() {
                     fetchAllDetails();
                 }
                 requestLeft--;
+            });
+        });
+    };
+
+    /**
+     * Gets the place details from the Google Places API.
+     * @param {string} placeId Place ID
+     * @returns {Promise<google.maps.places.PlaceResult>}
+     */
+    const fetchPlaceDetails = async (placeId) => {
+        return new Promise((resolve, reject) => {
+            placeService.current.getDetails({ placeId }, (place, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    resolve(place);
+                } else {
+                    reject(status);
+                }
             });
         });
     };
@@ -524,9 +532,61 @@ export default function Trip() {
         console.log("Regenerate Day");
     };
 
-    function handleRegenerateNode() {
+    const handleRegenerateNode = async () => {
         console.log("Regenerate Node");
-    }
+        console.log(selectedNode);
+
+        const nodePlaceResponse = days[selectedDayIndex].placeResponses.find((response) => response.tag === selectedNode.type);
+        console.log(nodePlaceResponse);
+
+        const nodeToBeReplaced = days[selectedDayIndex].markers[parseInt(selectedNode.label) - 1];
+
+        const getNextPlace = (nodePlaceResponse) => {
+            const result = nodePlaceResponse.results[nodePlaceResponse.resultIndex];
+            nodePlaceResponse.resultIndex++;
+            return result;
+        };
+
+        const nextPlace = getNextPlace(nodePlaceResponse);
+        console.log(nextPlace);
+
+        try {
+            const nextPlaceDetails = await fetchPlaceDetails(nextPlace.place_id);
+            console.log(nextPlaceDetails);
+
+            const newMarker = {
+                info: nextPlaceDetails.vicinity,
+                name: nextPlaceDetails.name,
+                phone: nextPlaceDetails.international_phone_number,
+                position: {
+                    lat: nextPlaceDetails.geometry.location.lat(),
+                    lng: nextPlaceDetails.geometry.location.lng()
+                },
+                rating: nextPlaceDetails.rating,
+                types: nextPlaceDetails.types,
+                user_ratings_total: nextPlaceDetails.user_ratings_total,
+                website: nextPlaceDetails.website
+            };
+            setDays((prevState) => {
+                const newDayData = [...prevState];
+                newDayData[selectedDayIndex].markers[parseInt(selectedNode.label) - 1] = { ...nodeToBeReplaced, ...newMarker };
+                newDayData[selectedDayIndex].durations[newMarker.name] = { hours: 2, minutes: 0 };
+                return newDayData;
+            });
+
+            console.log({ ...nodeToBeReplaced, ...newMarker });
+            // const startingLocation = { lat: tripData.startingLocation.lat, lng: tripData.startingLocation.lng };
+            // calculateRoute(
+            //     startingLocation,
+            //     days[selectedDayIndex].markers,
+            //     selectedDayIndex,
+            //     tripData.days[selectedDayIndex].transportationMode
+            // );
+            setSelectedNode(null);
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
@@ -708,8 +768,8 @@ export default function Trip() {
                                     <Box display="flex" justifyContent="space-between" alignItems="center">
                                         <Typography variant="h6" gutterBottom>
                                             {selectedNode.name}
-                                        </Typography>
-                                        <Box display="flex" gap={1}>
+                                        </Typography>{" "}
+                                        <Box display="flex" gap={1.5}>
                                             {selectedNode.type && (
                                                 <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
                                                     <Tooltip
