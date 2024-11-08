@@ -29,7 +29,10 @@ import dayjs from "dayjs";
 import React, { useEffect, useRef, useState } from "react";
 import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
+import NodeInfoDialog from "../components/node-info-dialog"; // Import the NodeInfoDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
+import "./styles/trip.css";
+import "./styles/styles.css";
 
 const libraries = ["places", "marker", "geometry"];
 
@@ -44,13 +47,14 @@ export default function Trip() {
     const [days, setDays] = useState(
         existingTripData
             ? tripData.days.map((day) => {
-                  return { ...day.routeStops, placeResponses: [] };
-              })
+                return { ...day.routeStops, placeResponses: [] };
+            })
             : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
     );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isAddDayDialogOpen, setIsAddDayDialogOpen] = useState(false);
+    const [isNodeInfoDialogOpen, setIsNodeInfoDialogOpen] = useState(false);
     const [tripName, setTripName] = useState(tripData.name ? tripData.name : "Untitled Trip");
 
     const polylineRef = useRef(null);
@@ -77,6 +81,24 @@ export default function Trip() {
             window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
         }
     }, [tripName]);
+
+    useEffect(() => {
+        if (selectedNode && window.innerWidth <= 768) {
+            setIsNodeInfoDialogOpen(true);
+        }
+    }, [selectedNode]);
+
+    useEffect(() => {
+        const handleResize = () => {
+            // Your resize logic here
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
 
     /**
      * Handles events after the Google Maps API has loaded.
@@ -413,7 +435,7 @@ export default function Trip() {
     };
 
     const handleAddDay = () => {
-        setIsDialogOpen(true);
+        setIsAddDayDialogOpen(true);
     };
 
     const getTransportIcon = (mode) => {
@@ -472,7 +494,7 @@ export default function Trip() {
 
         setDays((prevDays) => [...prevDays, newDayData]);
         setSelectedDayIndex(newDayIndex);
-        setIsDialogOpen(false);
+        setIsAddDayDialogOpen(false);
     };
 
     useEffect(() => {
@@ -647,15 +669,19 @@ export default function Trip() {
 
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
-            <Stack direction="column">
+            <Stack direction="column" className="trip-container">
                 <Stack
                     direction="row"
                     spacing={3}
                     sx={{ justifyContent: "space-between", alignItems: "center", mt: 3, height: 50 }}>
-                    <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
-                    <SaveTripButton tripData={tripData} tripName={tripName} />
+                    <Box display="flex" justifyContent="flex-start">
+                        <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
+                    </Box>
+                    <Box display="flex" justifyContent="flex-end">
+                        <SaveTripButton tripData={tripData} tripName={tripName} />
+                    </Box>
                 </Stack>
-                <Box display="flex" alignItems="center" justifyContent="center" mt={2}>
+                <Box display="flex" alignItems="center" justifyContent="center" my={3}>
                     <Box display="flex" alignItems="center">
                         {days.map((_, index) => (
                             <React.Fragment key={index}>
@@ -709,20 +735,18 @@ export default function Trip() {
                         </Box>
                     </Box>
                 </Box>
-                <Stack direction="row" spacing={4} sx={{ mt: 1, mb: 2, alignItems: "center" }}>
-                    <Box width={1 / 4} px="10px">
-                        <Typography variant="h5" justifySelf="center">
-                            {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
-                        </Typography>
-                    </Box>
-                    <Tooltip title="Regenerate Day" placement="right" arrow>
-                        <IconButton onClick={handleRegenerateDay}>
-                            <ReplayIcon />
-                        </IconButton>
-                    </Tooltip>
-                </Stack>
-                <Stack direction="row">
-                    <Box width="25%" px="10px" display="flex" flexDirection="column" alignItems="center" overflow="auto" mr={4}>
+                <Stack direction={{ xs: "column", md: "row" }} className={`trip-content fade-in-fast`}>
+                    <Box className="nodes-container" sx={{ mt: -8 }}>
+                        <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
+                            <Typography variant="h5" gutterBottom color="#686879">
+                                {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
+                            </Typography>
+                            <Tooltip title="Regenerate Day" placement="right" arrow>
+                                <IconButton onClick={handleRegenerateDay}>
+                                    <ReplayIcon/>
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
                         {days[selectedDayIndex].markers.map(
                             (marker, index) =>
                                 marker && (
@@ -735,7 +759,8 @@ export default function Trip() {
                                         onClick={() => {
                                             setSelectedNode(selectedNode?.name === marker.name ? null : marker);
                                         }}
-                                        sx={{ cursor: "pointer" }}>
+                                        sx={{ cursor: "pointer" }}
+                                        className="node">
                                         <Box
                                             display="flex"
                                             flexDirection="column"
@@ -797,13 +822,13 @@ export default function Trip() {
                             Total Time: {calculateTotalTripDuration()}
                         </Typography>
                     </Box>
-                    <Box flex={1} display="flex" flexDirection="column" alignItems="center" width="75%">
+                    <Box flex="1 1 auto" alignItems="center" className={`map-container ${selectedNode ? 'map-container-half' : ''}`}>
                         <GoogleMap
                             id="map"
                             onLoad={(map) => {
                                 mapRef.current = map;
                             }}
-                            mapContainerStyle={{ height: "400px", width: "100%" }}
+                            mapContainerStyle={{ width: "100%", height: "100%" }} // Ensure the map container has explicit width and height
                             zoom={14}
                             center={mapCenter}
                             options={{ mapId: "651e26fab50abd83" }}>
@@ -820,7 +845,7 @@ export default function Trip() {
                             )}
                         </GoogleMap>
                         {selectedNode && (
-                            <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }}>
+                            <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }} className="node-info-popup">
                                 <CardContent>
                                     <Box display="flex" justifyContent="space-between" alignItems="center">
                                         <Typography variant="h6" gutterBottom>
@@ -932,11 +957,24 @@ export default function Trip() {
                 </Stack>
             </Stack>
             <AddDayDialog
-                open={isDialogOpen}
-                onClose={() => setIsDialogOpen(false)}
+                open={isAddDayDialogOpen}
+                onClose={() => setIsAddDayDialogOpen(false)}
                 onSave={handleSaveDay}
                 startingLocation={tripData.startingLocation.name}
                 previousDayDate={dayjs().format("YYYY-MM-DD")}
+            />
+            <NodeInfoDialog
+                open={isNodeInfoDialogOpen}
+                onClose={() => {
+                    setIsNodeInfoDialogOpen(false);
+                    setSelectedNode(null); // Unselect the node
+                }}
+                selectedNode={selectedNode}
+                days={days}
+                selectedDayIndex={selectedDayIndex}
+                handleHoursChange={handleHoursChange}
+                handleMinutesChange={handleMinutesChange}
+                handleNotesChange={handleNotesChange}
             />
         </LoadScript>
     );
@@ -958,7 +996,7 @@ const TripTitle = ({ tripName, onTripNameChange }) => {
                     autoFocus
                 />
             ) : (
-                <Typography variant="h3" onClick={() => setIsEditing(true)} sx={{ "&:hover": { cursor: "pointer" } }}>
+                <Typography variant="h3" className="trip-title" onClick={() => setIsEditing(true)} sx={{ "&:hover": { cursor: "pointer" } }}>
                     {tripName}
                 </Typography>
             )}
