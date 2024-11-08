@@ -62,7 +62,12 @@ export default function Trip() {
     const [hasEditPermission, setHasEditPermission] = useState(true);
 
     const fetchEditPermissions = useCallback(async () => {
-    const accessToken = await getAccessTokenSilently();
+	if (!tripID) {
+            // Skip checking permissions if there's no trip_id
+            setHasEditPermission(true);
+            return;
+	}
+	const accessToken = await getAccessTokenSilently();
 	try {
             const response = await axios.get(`${config.backend_endpoint}/api/private/get_can_edit?trip_id=${tripID}`, {
 		headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
@@ -85,32 +90,38 @@ export default function Trip() {
     const [editors, setEditors] = useState('');
 
     const fetchPermissions = useCallback(async () => {
-    const accessToken = await getAccessTokenSilently();
-    try {
-        const response = await axios.get(`${config.backend_endpoint}/api/private/get_is_trip_owner?trip_id=${tripID}`, {
-            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
-        });
-
-        if (response.data.is_owner) {
+	if (!tripID) {
+            // Skip checking permissions if there's no trip_id
             setHasSharePermission(true);
-            const viewersResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_viewers?trip_id=${tripID}`, {
-                headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
-            });
-            const editorsResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_editors?trip_id=${tripID}`, {
-                headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+            return;
+	}
+	
+	const accessToken = await getAccessTokenSilently();
+	try {
+            const response = await axios.get(`${config.backend_endpoint}/api/private/get_is_trip_owner?trip_id=${tripID}`, {
+		headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
             });
 
-            const viewersArray = Array.isArray(viewersResponse.data.viewers) ? viewersResponse.data.viewers : [];
-            const editorsArray = Array.isArray(editorsResponse.data.editors) ? editorsResponse.data.editors : [];
-            setViewers(viewersArray.join(', '));
-            setEditors(editorsArray.join(', '));
-        } else {
+            if (response.data.is_owner) {
+		setHasSharePermission(true);
+		const viewersResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_viewers?trip_id=${tripID}`, {
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+		});
+		const editorsResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_editors?trip_id=${tripID}`, {
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+		});
+
+		const viewersArray = Array.isArray(viewersResponse.data.viewers) ? viewersResponse.data.viewers : [];
+		const editorsArray = Array.isArray(editorsResponse.data.editors) ? editorsResponse.data.editors : [];
+		setViewers(viewersArray.join(', '));
+		setEditors(editorsArray.join(', '));
+            } else {
+		setHasSharePermission(false);
+            }
+	} catch (error) {
+            console.log("Failed to determine if the user is the owner of the trip.", error);
             setHasSharePermission(false);
-        }
-    } catch (error) {
-        console.log("Failed to determine if the user is the owner of the trip.", error);
-        setHasSharePermission(false);
-    }
+	}
 }, [getAccessTokenSilently]);
 
     const fetchTripData = useCallback(async () => {
