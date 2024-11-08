@@ -26,7 +26,7 @@ import {
 } from "@mui/material";
 import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
@@ -570,6 +570,7 @@ export default function Trip() {
             setDays((prevState) => {
                 const newDayData = [...prevState];
                 newDayData[selectedDayIndex].markers[parseInt(selectedNode.label) - 1] = { ...nodeToBeReplaced, ...newMarker };
+                delete newDayData[selectedDayIndex].durations[selectedNode.name]; // Remove the previous duration
                 newDayData[selectedDayIndex].durations[newMarker.name] = { hours: 2, minutes: 0 };
                 return newDayData;
             });
