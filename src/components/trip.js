@@ -6,7 +6,9 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import PublicIcon from "@mui/icons-material/Public";
+import ReplayIcon from "@mui/icons-material/Replay";
 import SaveIcon from "@mui/icons-material/Save";
+import SyncIcon from "@mui/icons-material/Sync";
 import {
     Box,
     Button,
@@ -15,6 +17,7 @@ import {
     Chip,
     FormControl,
     IconButton,
+    Paper,
     Rating,
     Stack,
     TextField,
@@ -23,7 +26,7 @@ import {
 } from "@mui/material";
 import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
@@ -52,12 +55,13 @@ export default function Trip() {
 
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
+    const placeService = useRef(null);
 
     useEffect(() => {
         if (tripData) {
             const newTripData = tripData;
             newTripData.days = days.map((day, index) => {
-                // Removes placeResponses because it causes many deprecated errors that can't be removed/ignored.
+                // Removes placeResponses because it shows many deprecated errors that can't be removed/ignored.
                 const { placeResponses, ...rest } = day;
 
                 return { ...newTripData.days[index], routeStops: { ...rest } };
@@ -137,7 +141,9 @@ export default function Trip() {
 
         let requestLeft = tripData.days[dayIndex].dayTags.length;
 
-        const service = new window.google.maps.places.PlacesService(document.createElement("div"));
+        // Set service reference
+        placeService.current = new window.google.maps.places.PlacesService(document.createElement("div"));
+
         const tags = tripData.days[dayIndex].dayTags;
         const responses = [];
 
@@ -168,7 +174,7 @@ export default function Trip() {
                 rankBy: window.google.maps.places.RankBy.PROMINENCE
             };
 
-            service.nearbySearch(request, (results, status) => {
+            placeService.current.nearbySearch(request, (results, status) => {
                 const numTags = tripData.days[dayIndex].dayTags.length;
 
                 if (status === window.google.maps.places.PlacesServiceStatus.OK) {
@@ -196,7 +202,7 @@ export default function Trip() {
                         console.error(
                             `Requires ${MIN_DESTINATIONS_PER_DAY} minimum, got ${responses.length}. These are the responses:`
                         );
-                        console.log(responses);
+                        console.log("Response:", responses);
                         return;
                     }
 
@@ -207,20 +213,9 @@ export default function Trip() {
                             tag: responses[responseIdx].tag,
                             destination: responses[responseIdx].results[responses[responseIdx].resultIndex]
                         });
-                        responses[responseIdx].resultIndex++;
+                        responses[responseIdx].resultIndex =
+                            (responses[responseIdx].resultIndex + 1) % responses[responseIdx].results.length;
                     }
-
-                    const fetchPlaceDetails = (placeId) => {
-                        return new Promise((resolve, reject) => {
-                            service.getDetails({ placeId }, (place, status) => {
-                                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                                    resolve(place);
-                                } else {
-                                    reject(status);
-                                }
-                            });
-                        });
-                    };
 
                     const fetchAllDetails = async () => {
                         try {
@@ -273,6 +268,23 @@ export default function Trip() {
                     fetchAllDetails();
                 }
                 requestLeft--;
+            });
+        });
+    };
+
+    /**
+     * Gets the place details from the Google Places API.
+     * @param {string} placeId Place ID
+     * @returns {Promise<google.maps.places.PlaceResult>}
+     */
+    const fetchPlaceDetails = async (placeId) => {
+        return new Promise((resolve, reject) => {
+            placeService.current.getDetails({ placeId }, (place, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    resolve(place);
+                } else {
+                    reject(status);
+                }
             });
         });
     };
@@ -517,6 +529,122 @@ export default function Trip() {
         return colors;
     };
 
+    const handleRegenerateDay = async () => {
+        const { markers, placeResponses } = days[selectedDayIndex];
+        const [first, ...restMarkers] = markers;
+        const newNodes = [];
+
+        for (const marker of restMarkers) {
+            const response = placeResponses.find((response) => response.tag === marker.type);
+
+            const getNextPlace = (nodePlaceResponse) => {
+                const result = nodePlaceResponse.results[nodePlaceResponse.resultIndex];
+                nodePlaceResponse.resultIndex = (nodePlaceResponse.resultIndex + 1) % nodePlaceResponse.results.length;
+                return result;
+            };
+
+            const nextPlace = getNextPlace(response);
+
+            try {
+                const nextPlaceDetails = await fetchPlaceDetails(nextPlace.place_id);
+
+                const newNode = {
+                    info: nextPlaceDetails.vicinity,
+                    name: nextPlaceDetails.name,
+                    phone: nextPlaceDetails.international_phone_number,
+                    position: {
+                        lat: nextPlaceDetails.geometry.location.lat(),
+                        lng: nextPlaceDetails.geometry.location.lng()
+                    },
+                    rating: nextPlaceDetails.rating,
+                    types: nextPlaceDetails.types,
+                    user_ratings_total: nextPlaceDetails.user_ratings_total,
+                    website: nextPlaceDetails.website
+                };
+
+                newNodes.push(newNode);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        const newMarkers = newNodes.map((marker, index) => {
+            return { ...markers[index + 1], ...marker };
+        });
+
+        setDays((prevState) => {
+            const newDayData = [...prevState];
+            newDayData[selectedDayIndex].markers = [first, ...newMarkers];
+            newDayData[selectedDayIndex].durations = newMarkers.reduce((acc, marker) => {
+                acc[marker.name] = { hours: 2, minutes: 0 };
+                return acc;
+            }, {});
+            return newDayData;
+        });
+
+        const location = {
+            lat: tripData.startingLocation.latitude || 0,
+            lng: tripData.startingLocation.longitude || 0
+        };
+        calculateRoute(location, newMarkers, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
+    };
+
+    const handleRegenerateNode = async () => {
+        const nodePlaceResponse = days[selectedDayIndex].placeResponses.find((response) => response.tag === selectedNode.type);
+
+        const getNextPlace = (nodePlaceResponse) => {
+            const result = nodePlaceResponse.results[nodePlaceResponse.resultIndex];
+            nodePlaceResponse.resultIndex = (nodePlaceResponse.resultIndex + 1) % nodePlaceResponse.results.length;
+            return result;
+        };
+        const nextPlace = getNextPlace(nodePlaceResponse);
+
+        try {
+            const nextPlaceDetails = await fetchPlaceDetails(nextPlace.place_id);
+
+            const newNode = {
+                info: nextPlaceDetails.vicinity,
+                name: nextPlaceDetails.name,
+                phone: nextPlaceDetails.international_phone_number,
+                position: {
+                    lat: nextPlaceDetails.geometry.location.lat(),
+                    lng: nextPlaceDetails.geometry.location.lng()
+                },
+                rating: nextPlaceDetails.rating,
+                types: nextPlaceDetails.types,
+                user_ratings_total: nextPlaceDetails.user_ratings_total,
+                website: nextPlaceDetails.website
+            };
+
+            const newMarkers = days[selectedDayIndex].markers.map((marker, index) => {
+                if (index === parseInt(selectedNode.label) - 1) {
+                    return { ...marker, ...newNode };
+                }
+                return marker;
+            });
+            // Remove starting location from markers
+            // eslint-disable-next-line no-unused-vars
+            const [_, ...rest] = newMarkers;
+
+            setDays((prevState) => {
+                const newDayData = [...prevState];
+                newDayData[selectedDayIndex].markers = newMarkers;
+                delete newDayData[selectedDayIndex].durations[selectedNode.name]; // Remove the previous duration
+                newDayData[selectedDayIndex].durations[newNode.name] = { hours: 2, minutes: 0 };
+                return newDayData;
+            });
+
+            const location = {
+                lat: tripData.startingLocation.latitude || 0,
+                lng: tripData.startingLocation.longitude || 0
+            };
+            calculateRoute(location, rest, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
+
+            setSelectedNode(null);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
             <Stack direction="column">
@@ -581,20 +709,20 @@ export default function Trip() {
                         </Box>
                     </Box>
                 </Box>
-                <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="h5" gutterBottom sx={{ justifySelf: "center" }}>
-                        {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
-                    </Typography>
+                <Stack direction="row" spacing={4} sx={{ mt: 1, mb: 2, alignItems: "center" }}>
+                    <Box width={1 / 4} px="10px">
+                        <Typography variant="h5" justifySelf="center">
+                            {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
+                        </Typography>
+                    </Box>
+                    <Tooltip title="Regenerate Day" placement="right" arrow>
+                        <IconButton onClick={handleRegenerateDay}>
+                            <ReplayIcon />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
                 <Stack direction="row">
-                    <Box
-                        width="25%"
-                        padding="10px"
-                        display="flex"
-                        flexDirection="column"
-                        alignItems="center"
-                        overflow="auto"
-                        mr={4}>
+                    <Box width="25%" px="10px" display="flex" flexDirection="column" alignItems="center" overflow="auto" mr={4}>
                         {days[selectedDayIndex].markers.map(
                             (marker, index) =>
                                 marker && (
@@ -697,33 +825,44 @@ export default function Trip() {
                                     <Box display="flex" justifyContent="space-between" alignItems="center">
                                         <Typography variant="h6" gutterBottom>
                                             {selectedNode.name}
-                                        </Typography>
-                                        {(selectedNode.phone?.trim() || selectedNode.website?.trim()) && (
-                                            <Box display="flex" gap={1}>
-                                                {selectedNode.phone?.trim() && (
-                                                    <Button
-                                                        variant="outlined"
-                                                        color="primary"
-                                                        href={`tel:${selectedNode.phone}`}
-                                                        sx={{ textTransform: "none" }}
-                                                        startIcon={<CallIcon />}>
-                                                        Call
-                                                    </Button>
-                                                )}
-                                                {selectedNode.website?.trim() && (
-                                                    <Button
-                                                        variant="outlined"
-                                                        color="primary"
-                                                        href={selectedNode.website}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        sx={{ textTransform: "none" }}
-                                                        startIcon={<PublicIcon />}>
-                                                        Website
-                                                    </Button>
-                                                )}
-                                            </Box>
-                                        )}
+                                        </Typography>{" "}
+                                        <Box display="flex" gap={1.5}>
+                                            {selectedNode.type && (
+                                                <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
+                                                    <Tooltip
+                                                        title="Regenerate Node"
+                                                        placement="left"
+                                                        arrow
+                                                        sx={{ justifySelf: "start" }}>
+                                                        <IconButton onClick={handleRegenerateNode} color="primary">
+                                                            <SyncIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Paper>
+                                            )}
+                                            {selectedNode.website?.trim() && (
+                                                <Button
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    href={selectedNode.website}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    sx={{ textTransform: "none" }}
+                                                    startIcon={<PublicIcon />}>
+                                                    Website
+                                                </Button>
+                                            )}
+                                            {selectedNode.phone?.trim() && (
+                                                <Button
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    href={`tel:${selectedNode.phone}`}
+                                                    sx={{ textTransform: "none" }}
+                                                    startIcon={<CallIcon />}>
+                                                    Call
+                                                </Button>
+                                            )}
+                                        </Box>
                                     </Box>
                                     <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                         {selectedNode.info}
@@ -741,7 +880,6 @@ export default function Trip() {
                                             </Typography>
                                             {selectedNode.types.map((tag, index) => (
                                                 <Chip
-                                                    // variant={selectedNode.type === tag ? "filled" : "outlined"}
                                                     variant="outlined"
                                                     color={selectedNode.type === tag ? "primary" : "default"}
                                                     label={tag}
@@ -863,7 +1001,7 @@ const SaveTripButton = ({ tripName }) => {
     };
 
     return (
-        <Tooltip title="Save Trip">
+        <Tooltip title="Save Trip" placement="left" arrow>
             <IconButton variant="outlined" onClick={handleSave}>
                 {icon}
             </IconButton>
