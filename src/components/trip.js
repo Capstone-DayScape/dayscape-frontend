@@ -202,7 +202,7 @@ export default function Trip() {
                         console.error(
                             `Requires ${MIN_DESTINATIONS_PER_DAY} minimum, got ${responses.length}. These are the responses:`
                         );
-                        console.log(responses);
+                        console.log("Response:", responses);
                         return;
                     }
 
@@ -530,8 +530,6 @@ export default function Trip() {
     };
 
     const handleRegenerateDay = async () => {
-        console.log("Regenerate Day");
-
         const { markers, placeResponses } = days[selectedDayIndex];
         const [first, ...restMarkers] = markers;
         const newNodes = [];
@@ -569,8 +567,6 @@ export default function Trip() {
                 console.error(error);
             }
         }
-        console.log("NewMarkers:", newNodes);
-
         const newMarkers = newNodes.map((marker, index) => {
             return { ...markers[index + 1], ...marker };
         });
@@ -981,9 +977,6 @@ const SaveTripButton = ({ tripName }) => {
 
     const handleSave = async () => {
         try {
-            window.onbeforeunload = () => {
-                return "";
-            };
             const tripData = JSON.parse(sessionStorage.getItem("trip_data"));
             const accessToken = await getAccessTokenSilently();
 
