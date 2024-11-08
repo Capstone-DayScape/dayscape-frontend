@@ -201,7 +201,15 @@ const MyTripsTab = ({ value, index }) => {
                     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
                 });
                 if (sharedResponse.status === 200) {
-                    setSharedTrips(sharedResponse.data);
+                const trips = sharedResponse.data;
+                const sharedTripsWithPermissions = await Promise.all(trips.map(async (trip) => {
+                    const response = await axios.get(`${config.backend_endpoint}/api/private/get_can_edit?trip_id=${trip.uuid}`, {
+                        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                    });
+                    return { ...trip, canEdit: response.data.can_edit };
+                }));
+                setSharedTrips(sharedTripsWithPermissions);
+                    // setSharedTrips(sharedResponse.data);
                 }
             } catch (error) {
                 console.error("Error fetching shared trips:", error);
@@ -253,8 +261,8 @@ const MyTripsTab = ({ value, index }) => {
                         {sharedTrips.map((trip) => (
                             <li key={trip.uuid}>
                                 {trip.name}
-                                <Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}>
-                                    View/Edit
+                                <Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}
+				    color={trip.canEdit ? "primary" : "warning"}>{trip.canEdit ? "Edit" : "View (read-only)"}
                                 </Button>
                             </li>
                         ))}
@@ -263,7 +271,6 @@ const MyTripsTab = ({ value, index }) => {
                     <Typography>No shared trips available.</Typography>
                 )}
             </Box>
-
             <Dialog open={isDeleteDialogOpen} onClose={handleCloseDeleteDialog}>
                 <DialogTitle>Confirm Deletion</DialogTitle>
                 <DialogContent>
