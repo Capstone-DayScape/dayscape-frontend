@@ -529,8 +529,57 @@ export default function Trip() {
         return colors;
     };
 
-    const handleRegenerateDay = () => {
+    const handleRegenerateDay = async () => {
         console.log("Regenerate Day");
+
+        const { markers, placeResponses } = days[selectedDayIndex];
+        const [first, ...restMarkers] = markers;
+        const newNodes = [];
+
+        for (const marker of restMarkers) {
+            const response = placeResponses.find((response) => response.tag === marker.type);
+
+            const getNextPlace = (nodePlaceResponse) => {
+                const result = nodePlaceResponse.results[nodePlaceResponse.resultIndex];
+                nodePlaceResponse.resultIndex = (nodePlaceResponse.resultIndex + 1) % nodePlaceResponse.results.length;
+                return result;
+            };
+
+            const nextPlace = getNextPlace(response);
+
+            try {
+                const nextPlaceDetails = await fetchPlaceDetails(nextPlace.place_id);
+
+                const newNode = {
+                    info: nextPlaceDetails.vicinity,
+                    name: nextPlaceDetails.name,
+                    phone: nextPlaceDetails.international_phone_number,
+                    position: {
+                        lat: nextPlaceDetails.geometry.location.lat(),
+                        lng: nextPlaceDetails.geometry.location.lng()
+                    },
+                    rating: nextPlaceDetails.rating,
+                    types: nextPlaceDetails.types,
+                    user_ratings_total: nextPlaceDetails.user_ratings_total,
+                    website: nextPlaceDetails.website
+                };
+
+                newNodes.push(newNode);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        console.log("NewMarkers:", newNodes);
+
+        const newMarkers = newNodes.map((marker, index) => {
+            return { ...markers[index + 1], ...marker };
+        });
+
+        const location = {
+            lat: tripData.startingLocation.latitude || 0,
+            lng: tripData.startingLocation.longitude || 0
+        };
+        calculateRoute(location, newMarkers, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
     };
 
     const handleRegenerateNode = async () => {
