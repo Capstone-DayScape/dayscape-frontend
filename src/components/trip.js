@@ -42,6 +42,7 @@ import NodeInfoDialog from "../components/node-info-dialog"; // Import the NodeI
 import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
 import "./styles/trip.css";
 import "./styles/styles.css";
+import { RegenDayDialog } from "./regen-day-dialog";
 
 const libraries = ["places", "marker", "geometry"];
 
@@ -59,14 +60,15 @@ export default function Trip() {
     const [days, setDays] = useState(
         existingTripData
             ? tripData.days.map((day) => {
-                return { ...day.routeStops, placeResponses: [] };
-            })
+                  return { ...day.routeStops, placeResponses: [] };
+              })
             : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
     );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
     const [isAddDayDialogOpen, setIsAddDayDialogOpen] = useState(false);
     const [isNodeInfoDialogOpen, setIsNodeInfoDialogOpen] = useState(false);
+    const [isRegenDayDialogOpen, setIsRegenDayDialogOpen] = useState(false);
     const [tripName, setTripName] = useState(tripData.name ? tripData.name : "Untitled Trip");
 
     const polylineRef = useRef(null);
@@ -244,10 +246,10 @@ export default function Trip() {
             // Your resize logic here
         };
 
-        window.addEventListener('resize', handleResize);
+        window.addEventListener("resize", handleResize);
 
         return () => {
-            window.removeEventListener('resize', handleResize);
+            window.removeEventListener("resize", handleResize);
         };
     }, []);
 
@@ -759,6 +761,7 @@ export default function Trip() {
             lng: tripData.startingLocation.longitude || 0
         };
         calculateRoute(location, newMarkers, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
+        setIsRegenDayDialogOpen(false);
     };
 
     const handleRegenerateNode = async () => {
@@ -895,14 +898,14 @@ export default function Trip() {
                     </Box>
                 </Box>
                 <Stack direction={{ xs: "column", md: "row" }} className={`trip-content fade-in-fast`}>
-                    <Box className="nodes-container" sx={{ mt: -8 }}>
+                    <Box className="nodes-container" sx={{ mt: -9 }}>
                         <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
                             <Typography variant="h5" gutterBottom color="#686879">
                                 {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
                             </Typography>
                             <Tooltip title="Regenerate Day" placement="right" arrow>
-                                <IconButton onClick={handleRegenerateDay}>
-                                    <ReplayIcon/>
+                                <IconButton onClick={() => setIsRegenDayDialogOpen(true)} sx={{ ml: 1.2, mb: 1 }}>
+                                    <ReplayIcon />
                                 </IconButton>
                             </Tooltip>
                         </Box>
@@ -980,8 +983,11 @@ export default function Trip() {
                         <Typography variant="body1" mt={2} align="center" color="#686879">
                             Total Time: {calculateTotalTripDuration()}
                         </Typography>
-                    </Box>
-                    <Box flex="1 1 auto" alignItems="center" className={`map-container ${selectedNode ? 'map-container-half' : ''}`}>
+                    </Box>{" "}
+                    <Box
+                        flex="1 1 auto"
+                        alignItems="center"
+                        className={`map-container ${selectedNode ? "map-container-half" : ""}`}>
                         <GoogleMap
                             id="map"
                             onLoad={(map) => {
@@ -1160,6 +1166,12 @@ export default function Trip() {
                 handleHoursChange={handleHoursChange}
                 handleMinutesChange={handleMinutesChange}
                 handleNotesChange={handleNotesChange}
+                handleRegenerateNode={handleRegenerateNode}
+            />{" "}
+            <RegenDayDialog
+                open={isRegenDayDialogOpen}
+                onClose={() => setIsRegenDayDialogOpen(false)}
+                onAccept={handleRegenerateDay}
             />
         </Stack>
         </LoadScript>
@@ -1182,7 +1194,11 @@ const TripTitle = ({ tripName, onTripNameChange }) => {
                     autoFocus
                 />
             ) : (
-                <Typography variant="h3" className="trip-title" onClick={() => setIsEditing(true)} sx={{ "&:hover": { cursor: "pointer" } }}>
+                <Typography
+                    variant="h3"
+                    className="trip-title"
+                    onClick={() => setIsEditing(true)}
+                    sx={{ "&:hover": { cursor: "pointer" } }}>
                     {tripName}
                 </Typography>
             )}
