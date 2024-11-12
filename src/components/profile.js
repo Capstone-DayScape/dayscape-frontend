@@ -95,11 +95,13 @@ const ProfileTab = () => {
                 <img src={user.picture} alt="User Profile" />
                 <Stack direction="column">
                     <Typography variant="h5">{user.name}</Typography>
-                    <Typography variant="h6">{user.email}</Typography>
+                    <Typography variant="h6" color="gray">{user.email}</Typography>
                 </Stack>
             </Stack>
-            <Typography variant="body1">{data?.message}</Typography>
-            <Typography variant="h5">My Preferences</Typography>
+            <Paper sx={{ display: { xs: "block", sm: "none"} }}>
+                <Typography variant="body1">{data?.message}</Typography>
+            </Paper>
+            <Typography variant="h5" sx={{ mt: 5 }}>My Preferences</Typography>
             <TagInput onInfoMessage={(message) => setInfoMessage(message)} tagsValue={tags} onTagChange={handleTagChange} />
             {infoMessage.message && (
                 <Alert severity={infoMessage.variant} onClose={() => setInfoMessage({ variant: "", message: "" })}>
