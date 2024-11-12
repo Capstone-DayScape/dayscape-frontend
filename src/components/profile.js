@@ -98,7 +98,7 @@ const ProfileTab = () => {
                     <Typography variant="h6" color="gray">{user.email}</Typography>
                 </Stack>
             </Stack>
-            <Paper sx={{ display: { xs: "block", sm: "none"} }}>
+            <Paper sx={{ display: { xs: "none", sm: "none"} }}>
                 <Typography variant="body1">{data?.message}</Typography>
             </Paper>
             <Typography variant="h5" sx={{ mt: 5 }}>My Preferences</Typography>
