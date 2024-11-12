@@ -12,7 +12,19 @@
     animation-fill-mode: both;
 }
 
+.fade-in-slow {
+    animation: fadeIn 2s ease-in;
+    animation-fill-mode: both;
+}
+
 .fade-in-fast {
     animation: fadeIn 0.5s ease-in;
     animation-fill-mode: both;
+}
+
+.trip-link {
+    color: primary;
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 650;
 }

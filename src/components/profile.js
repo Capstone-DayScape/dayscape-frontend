@@ -1,11 +1,15 @@
 import { useAuth0 } from "@auth0/auth0-react";
-import { Alert, Box, Button, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { Alert, Box, Button, Paper, Stack, Typography, Table, TableBody, TableCell, TableContainer, TableRow } from "@mui/material";
 import React, { useState, useEffect } from "react";
 import { getTestMessage, getTrip, getUserPreferences, saveUserPreferences, translatePreferencesToTypes } from "../api.js";
 import TagInput from "../components/tag-input";
 import { INFO_MESSAGE_VARIANT } from "./constants";
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
+import EditLocationAltIcon from '@mui/icons-material/EditLocationAlt';
+import FmdGoodIcon from '@mui/icons-material/FmdGood';
+import AddIcon from '@mui/icons-material/Add';
+import { Link } from 'react-router-dom';
+import './styles/styles.css'; 
 
 import config from "../config";
 import axios from "axios";
@@ -13,29 +17,17 @@ import axios from "axios";
 export default function Profile() {
     const { isLoading } = useAuth0();
 
-    const [tabIndex, setTabIndex] = useState(0);
-
-    const handleChange = (event, newValue) => {
-        setTabIndex(newValue);
-    };
-
     return (
         <Box sx={{ width: 8 / 10, justifySelf: "center" }}>
             {isLoading ? (
                 <Box>Loading...</Box>
             ) : (
-                <Stack direction="row" spacing={5}>
-                    <Paper sx={{ height: "fit-content" }}>
-                        <Tabs value={tabIndex} onChange={handleChange} orientation="vertical" sx={{ my: 2 }}>
-                            <Tab label="Profile" sx={{ px: 3 }} />
-                            <Tab label="My Tags" sx={{ px: 3 }} />
-                            <Tab label="My Trips" sx={{ px: 3 }} />
-                        </Tabs>
+                <Stack direction="column" spacing={5}>
+                    <Paper sx={{ height: "fit-content", p: 3 }}>
+                        <ProfileTab />
                     </Paper>
-                    <Paper sx={{ flexGrow: 1, minHeight: 500 }} elevation={2}>
-                        <ProfileTab value={tabIndex} index={0} />
-                        <MyTagsTab value={tabIndex} index={1} />
-                        <MyTripsTab value={tabIndex} index={2} />
+                    <Paper sx={{ height: "fit-content", p: 3 }}>
+                        <MyTripsTab />
                     </Paper>
                 </Stack>
             )}
@@ -43,19 +35,7 @@ export default function Profile() {
     );
 }
 
-const CustomTabPanel = ({ children, value, index }) => {
-    return (
-        <Box>
-            {value === index && (
-                <Stack direction="column" spacing={3} sx={{ m: 4, flexGrow: 1 }}>
-                    {children}
-                </Stack>
-            )}
-        </Box>
-    );
-};
-
-const ProfileTab = ({ value, index }) => {
+const ProfileTab = () => {
     const [data, setData] = useState(null);
 
     const { user, getAccessTokenSilently } = useAuth0();
@@ -68,26 +48,9 @@ const ProfileTab = ({ value, index }) => {
         fetchData().catch((err) => console.error(err));
     }, [getAccessTokenSilently]);
 
-    return (
-        <CustomTabPanel value={value} index={index}>
-            <Stack direction="row" spacing={2}>
-                <img src={user.picture} alt="User Profile" />
-                <Stack direction="column">
-                    <Typography variant="h5">{user.name}</Typography>
-                    <Typography variant="h6">{user.email}</Typography>
-                </Stack>
-            </Stack>
-            <Typography variant="p">{data?.message}</Typography>
-        </CustomTabPanel>
-    );
-};
-
-const MyTagsTab = ({ value, index }) => {
     const [tags, setTags] = useState([]);
     const [isTagChanged, setIsTagChanged] = useState(false);
     const [infoMessage, setInfoMessage] = useState({ message: "", variant: "" });
-
-    const { getAccessTokenSilently } = useAuth0();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -127,22 +90,32 @@ const MyTagsTab = ({ value, index }) => {
     };
 
     return (
-        <CustomTabPanel value={value} index={index}>
-            <Typography variant="h5">My Preferences</Typography>
+        <Stack direction="column" spacing={3}>
+            <Stack direction="row" spacing={2}>
+                <img src={user.picture} alt="User Profile" />
+                <Stack direction="column">
+                    <Typography variant="h5">{user.name}</Typography>
+                    <Typography variant="h6" color="gray">{user.email}</Typography>
+                </Stack>
+            </Stack>
+            <Paper sx={{ display: { xs: "none", sm: "none"} }}>
+                <Typography variant="body1">{data?.message}</Typography>
+            </Paper>
+            <Typography variant="h5" sx={{ mt: 5 }}>My Preferences</Typography>
             <TagInput onInfoMessage={(message) => setInfoMessage(message)} tagsValue={tags} onTagChange={handleTagChange} />
             {infoMessage.message && (
                 <Alert severity={infoMessage.variant} onClose={() => setInfoMessage({ variant: "", message: "" })}>
                     {infoMessage.message}
                 </Alert>
             )}
-            <Button disabled={!isTagChanged} variant="contained" color="primary" onClick={handleSave}>
+            <Button disabled={!isTagChanged} variant="contained" color="primary" onClick={handleSave} sx={{ alignSelf: 'flex-end', minHeight: '50px', minWidth: '115px' }}>
                 Save
             </Button>
-        </CustomTabPanel>
+        </Stack>
     );
 };
 
-const MyTripsTab = ({ value, index }) => {
+const MyTripsTab = () => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [currentTripToDelete, setCurrentTripToDelete] = useState(null);
 
@@ -231,45 +204,81 @@ const MyTripsTab = ({ value, index }) => {
     };
 
     return (
-        <CustomTabPanel value={value} index={index}>
+        <Stack direction="column" spacing={3} className="fade-in">
             <Typography variant="h5">My Trips</Typography>
-            <Box>
+            <Paper sx={{ p: 3 }}>
                 <Typography variant="h6">Owned by me</Typography>
                 {ownedTrips.length > 0 ? (
-                    <ul>
-                        {ownedTrips.map((trip) => (
-                            <li key={trip.uuid}>
-                                {trip.name}
-                                <Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}>
-                                    Edit
-                                </Button>
-                                <Button onClick={() => handleOpenDeleteDialog(trip)} color="error">
-                                    Delete
-                                </Button>
-                            </li>
-                        ))}
-                    </ul>
+                    <TableContainer>
+                        <Table>
+                            <TableBody>
+                                {ownedTrips.map((trip) => (
+                                    <TableRow key={trip.uuid}>
+                                        <TableCell>
+                                            <Link 
+                                                to={`/trip/edit/${trip.uuid}`} 
+                                                className={"trip-link"}
+                                                style={{ color: "#0288d1", display: 'flex', alignItems: 'center' }}
+                                                onClick={() => handleEditTrip(trip.uuid, trip.name)}
+                                            >
+                                                {trip.name}
+                                                <EditLocationAltIcon sx={{ ml: 1 }} />
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <Button onClick={() => handleOpenDeleteDialog(trip)} color="error">
+                                                Delete
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                <TableRow>
+                                    <TableCell>
+                                        <Link to="/create-trip" className={"trip-link"} style={{ color: "#388e3c", display: 'flex', alignItems: 'center' }}>
+                                            <AddIcon sx={{ mr: 1, ml: -0.5 }} />
+                                            Add a new trip
+                                        </Link>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
                 ) : (
                     <Typography>No owned trips available.</Typography>
                 )}
-            </Box>
-            <Box>
+            </Paper>
+            <Paper sx={{ p: 3 }}>
                 <Typography variant="h6">Shared with me</Typography>
                 {sharedTrips.length > 0 ? (
-                    <ul>
-                        {sharedTrips.map((trip) => (
-                            <li key={trip.uuid}>
-                                {trip.name}
-                                <Button onClick={() => handleEditTrip(trip.uuid, trip.name)} startIcon={<EditIcon />}
-				    color={trip.canEdit ? "primary" : "warning"}>{trip.canEdit ? "Edit" : "View (read-only)"}
-                                </Button>
-                            </li>
-                        ))}
-                    </ul>
+                    <TableContainer>
+                        <Table>
+                            <TableBody>
+                                {sharedTrips.map((trip) => (
+                                    <TableRow key={trip.uuid}>
+                                        <TableCell>
+                                            <Link 
+                                                to={`/trip/edit/${trip.uuid}`} 
+                                                className={"trip-link"}
+                                                style={{ color: trip.canEdit ? "#0288d1" : "#f57c00", display: 'flex', alignItems: 'center' }}
+                                                onClick={() => handleEditTrip(trip.uuid, trip.name)}
+                                            >
+                                                {trip.name}
+                                                {trip.canEdit ? (
+                                                    <EditLocationAltIcon sx={{ ml: 1 }} />
+                                                ) : (
+                                                    <FmdGoodIcon sx={{ ml: 1 }} />
+                                                )}
+                                            </Link>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
                 ) : (
                     <Typography>No shared trips available.</Typography>
                 )}
-            </Box>
+            </Paper>
             <Dialog open={isDeleteDialogOpen} onClose={handleCloseDeleteDialog}>
                 <DialogTitle>Confirm Deletion</DialogTitle>
                 <DialogContent>
@@ -287,6 +296,6 @@ const MyTripsTab = ({ value, index }) => {
                     </Button>
                 </DialogActions>
             </Dialog>
-        </CustomTabPanel>
+        </Stack>
     );
 };
