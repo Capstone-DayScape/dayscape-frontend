@@ -3,9 +3,7 @@ import {
     Alert,
     Box,
     Button,
-    Checkbox,
     FormControl,
-    FormControlLabel,
     InputLabel,
     MenuItem,
     Select,
@@ -50,7 +48,6 @@ export default function CreateTrip() {
     const [startingAddress, setStartingAddress] = React.useState("");
     const [tags, setTags] = React.useState([]);
     const [transportMode, setTransportMode] = React.useState("DRIVING"); // Default to DRIVING
-    const [usePrevStops, setUsePrevStops] = React.useState(false);
     const [infoMessage, setInfoMessage] = React.useState({ message: "", variant: "" });
 
     const { isAuthenticated, getAccessTokenSilently } = useAuth0();
@@ -87,7 +84,6 @@ export default function CreateTrip() {
 
             tripData.startingLocation.address = startingAddress;
             tripData.startingDate = dateObject.hour(0).minute(0).second(0).millisecond(0).toISOString();
-            tripData.days[0].usePreviousStops = usePrevStops;
             tripData.days[0].transportationMode = transportMode;
 
             let accessToken;
@@ -163,12 +159,6 @@ export default function CreateTrip() {
                         onInfoMessage={(message) => setInfoMessage(message)}
                         tagsValue={tags}
                         onTagChange={(newTags) => setTags(newTags)}
-                    />
-                    <FormControlLabel
-                        control={
-                            <Checkbox checked={usePrevStops} onChange={(e) => setUsePrevStops(e.target.checked)} />
-                        }
-                        label="Use Previous Stops"
                     />
                     {infoMessage.message && (
                         <Alert
