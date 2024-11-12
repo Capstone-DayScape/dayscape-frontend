@@ -204,7 +204,7 @@ const MyTripsTab = () => {
     };
 
     return (
-        <Stack direction="column" spacing={3}>
+        <Stack direction="column" spacing={3} className="fade-in">
             <Typography variant="h5">My Trips</Typography>
             <Paper sx={{ p: 3 }}>
                 <Typography variant="h6">Owned by me</Typography>
