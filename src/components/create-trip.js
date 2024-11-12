@@ -21,6 +21,7 @@ import React, { useEffect } from "react";
 import { getUserPreferences, translatePreferencesToTypes } from "../api";
 import { INFO_MESSAGE_VARIANT } from "./constants";
 import TagInput from "./tag-input"; // Determines the maximum number of destinations and tags per day
+import "./styles/create-trip.css";
 
 const libraries = ["places"];
 
@@ -33,7 +34,6 @@ const tripData = {
         latitude: null,
         longitude: null
     },
-    globalTags: [],
     days: [
         {
             index: 0,
@@ -59,6 +59,7 @@ export default function CreateTrip() {
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!isAuthenticated) return;
             const accessToken = await getAccessTokenSilently();
 
             await getUserPreferences(accessToken, (response) => {
@@ -66,9 +67,14 @@ export default function CreateTrip() {
             });
         };
         fetchData().catch((err) => console.error(err));
-    }, [getAccessTokenSilently]);
+    }, [getAccessTokenSilently, isAuthenticated]);
 
     const saveData = async () => {
+        // Clear local storage
+        localStorage.removeItem("trip_data");
+        localStorage.removeItem("trip_id");
+        localStorage.removeItem("trip_name");
+
         setInfoMessage({ message: "Retrieving from data...", variant: INFO_MESSAGE_VARIANT.INFO });
         try {
             const place = autocompleteRef.current.getPlace();
@@ -99,7 +105,7 @@ export default function CreateTrip() {
 
             // Stores data into session storage
             setInfoMessage({ message: "Saving to session...", variant: INFO_MESSAGE_VARIANT.INFO });
-            window.sessionStorage.setItem("data", JSON.stringify(tripData));
+            window.sessionStorage.setItem("trip_data", JSON.stringify(tripData));
             setInfoMessage({ message: "Done.", variant: INFO_MESSAGE_VARIANT.SUCCESS });
 
             // Go to trip page
@@ -110,12 +116,12 @@ export default function CreateTrip() {
     };
 
     return (
-        <Box sx={{ width: 1 / 2, mx: "auto" }}>
+        <Box className="create-trip-container">
             <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <Typography variant="h2" sx={{ textAlign: "center" }} gutterBottom>
+                <Typography variant="h2" sx={{ textAlign: "center" }} gutterBottom className="fade-in">
                     Create a new trip
                 </Typography>
-                <Stack direction="column" spacing={2}>
+                <Stack direction="column" spacing={2} className="fade-in" style={{ animationDelay: '0.15s' }}>
                     <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries}>
                         <Autocomplete
                             onLoad={(ref) => (autocompleteRef.current = ref)}

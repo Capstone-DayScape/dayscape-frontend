@@ -1,0 +1,16 @@
+.create-trip-container {
+    width: 50%;
+    margin: auto;
+}
+
+@media (max-width: 768px) {
+    .create-trip-container {
+        width: 80%;
+    }
+}
+
+@media (max-width: 480px) {
+    .create-trip-container {
+        width: 100%;
+    }
+}

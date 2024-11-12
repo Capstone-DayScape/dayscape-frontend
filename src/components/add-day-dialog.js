@@ -34,6 +34,7 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!isAuthenticated) return;
             const accessToken = await getAccessTokenSilently();
 
             await getUserPreferences(accessToken, (response) => {
@@ -41,7 +42,7 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
             });
         };
         fetchData().catch((err) => console.error(err));
-    }, [getAccessTokenSilently]);
+    }, [getAccessTokenSilently, isAuthenticated]);
 
     const handleSave = async () => {
         let accessToken;

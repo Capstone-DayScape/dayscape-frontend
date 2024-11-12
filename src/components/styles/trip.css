@@ -1,0 +1,126 @@
+@keyframes dash {
+    from {
+        stroke-dashoffset: 1000;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.polyline {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: dash 2s linear forwards;
+}
+
+.trip-container {
+    display: flex;
+    flex-direction: column;
+    align-items: left;
+    padding: 25px;
+}
+
+.trip-title {
+    font-size: 2em;
+    margin-bottom: 20px;
+    text-align: left; /* Center the trip title */
+}
+
+.map-container {
+    flex: 1;
+    width: 100%;
+    height: 80%; /* Make the map container take the full height */
+    margin-bottom: 20px;
+    transition: height 0.3s ease; /* Smooth transition for height change */
+}
+
+.map-container-half {
+    height: 28%; /* Adjust height when node info is visible */
+}
+
+.map {
+    width: 100%;
+    height: 100%;
+}
+
+.nodes-container {
+    flex: 1 1 auto; /* Allow the container to grow */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: visible; /* Ensure no overflow is hidden */
+    margin-right: 4px;
+    height: auto; /* Allow the height to adjust based on content */
+}
+
+.node {
+    width: 100%;
+    min-width: 265px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.trip-content {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    gap: 20px;
+    height: calc(100vh - 400px); /* Adjust height for the trip content */
+}
+
+.node-info-popup {
+    position: relative;
+    width: 100%;
+    background: white;
+    z-index: 1000;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 20px;
+    max-height: 40vh;
+}
+
+@media (max-width: 768px) {
+    .trip-title {
+        font-size: 1.5em;
+    }
+
+    .map-container {
+        height: 50vh; /* Half height for the map on mobile */
+        order: -1; /* Ensure the map appears above the nodes */
+    }
+
+    .nodes-container {
+        width: 100%;
+        margin-right: 0;
+        margin-top: -10px !important;
+    }
+
+    .trip-content {
+        flex-direction: column; /* Adjust to column for mobile view */
+        height: auto; /* Adjust height for mobile view */
+    }
+
+    .node-info-popup {
+        display: none; /* Hide the popup on smaller screens */
+    }
+}
+
+@media (max-width: 480px) {
+    .trip-title {
+        font-size: 1.2em;
+    }
+
+    .map-container {
+        height: 50vh; /* Half height for the map on mobile */
+    }
+
+    .trip-content {
+        flex-direction: column; /* Adjust to column for phone view */
+    }
+
+    .map-container {
+        order: -1; /* Ensure the map appears above the nodes */
+    }
+}

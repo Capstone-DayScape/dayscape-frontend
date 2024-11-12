@@ -1,12 +1,20 @@
-import config from "./config";
 import axios from "axios";
+import config from "./config";
 
+/**
+ * Retrieves message from backend to show connection works.
+ * @param {string} accessToken Access token
+ * @param {function} callback Callback on success
+ * @returns {Promise<void>} Promise to complete
+ */
 export async function getTestMessage(accessToken, callback) {
     try {
         const response = await axios.get(config.backend_endpoint + "/api/private", {
             headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "text/html" }
         });
-        callback(response.data);
+        if (response.status === 200) {
+            callback(response.data);
+        }
     } catch (error) {
         throw new Error(`Error: ${error.message}`);
     }
@@ -27,14 +35,18 @@ export async function translatePreferencesToTypes(accessToken, preferencesList, 
                 { input_list: preferencesList },
                 { headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" } }
             );
-            callback(response.data);
+            if (response.status === 200) {
+                callback(response.data);
+            }
         } else {
             const response = await axios.post(
                 config.backend_endpoint + "/api/public/preferences_to_types",
                 { input_list: preferencesList },
                 { headers: { "Content-Type": "application/json" } }
             );
-            callback(response.data);
+            if (response.status === 200) {
+                callback(response.data);
+            }
         }
     } catch (error) {
         throw new Error(`Error: ${error.message}`);
@@ -42,7 +54,7 @@ export async function translatePreferencesToTypes(accessToken, preferencesList, 
 }
 
 /**
- * Saves the user's global preferences. Returns `string` within callback.
+ * Saves the user's global preferences. Returns `string` (message) within callback.
  * @param {string} accessToken Access token
  * @param {string[]} preferencesList List of tags
  * @param {function} callback Callback on success
@@ -57,7 +69,9 @@ export async function saveUserPreferences(accessToken, preferencesList, callback
                 headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
             }
         );
-        callback(response.data);
+        if (response.status === 200) {
+            callback(response.data);
+        }
     } catch (error) {
         throw new Error(`Error: ${error.message}`);
     }
@@ -66,7 +80,7 @@ export async function saveUserPreferences(accessToken, preferencesList, callback
 /**
  * Gets the user's global preferences. Returns `{data: string[]}` or `{}` within callback.
  * @param {string} accessToken Access token
- * @param {function} callback callback on success
+ * @param {function} callback Callback on success
  * @returns {Promise<void>} Promise to complete
  */
 export async function getUserPreferences(accessToken, callback) {
@@ -74,8 +88,71 @@ export async function getUserPreferences(accessToken, callback) {
         const response = await axios.get(config.backend_endpoint + "/api/private/get_preferences", {
             headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
         });
-        callback(response.data);
+        if (response.status === 200) {
+            callback(response.data);
+        }
     } catch (error) {
         throw new Error(`Error: ${error.message}`);
+    }
+}
+
+/**
+ * Saves the current trip. Returns `string` (id) within callback.
+ * @param {string} accessToken Access Token
+ * @param {{data: *, name:string, id:string}} tripInfo Information used to send request
+ * @param {function} callback Callback on success
+ * @returns {Promise<void>} Promise to complete
+ */
+export async function saveTrip(accessToken, tripInfo, callback) {
+    try {
+        if (tripInfo.id) {
+            const response = await axios.post(
+                config.backend_endpoint +
+                    "/api/private/save_trip?trip_name=" +
+                    tripInfo.name +
+                    "&trip_id=" +
+                    tripInfo.id,
+                tripInfo.data,
+                {
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                }
+            );
+            if (response.status === 200) {
+                callback(response.data);
+            }
+        } else {
+            const response = await axios.post(
+                config.backend_endpoint + "/api/private/save_trip?trip_name=" + tripInfo.name,
+                tripInfo.data,
+                {
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                }
+            );
+            if (response.status === 200) {
+                callback(response.data);
+            }
+        }
+    } catch (error) {
+        throw new Error(`Error: ${error.message}`);
+    }
+}
+
+/**
+ * Gets the trip with the trip id. Returns `[Object json]` (trip data) within callback.
+ * @param {string} accessToken Access Token
+ * @param {string} tripId Trip's ID
+ * @param {function} callback Callback on success
+ * @returns {Promise<void>} Promise to complete
+ */
+export async function getTrip(accessToken, tripId, callback) {
+    try {
+        const response = await axios.post(config.backend_endpoint + "/api/private/get_trip?trip_id=" + tripId, null, {
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+        });
+        if (response.status === 200) {
+            callback(response.data);
+        }
+    } catch (error) {
+        throw new Error(`Error fetching trip data: ${error.message}`);
     }
 }
