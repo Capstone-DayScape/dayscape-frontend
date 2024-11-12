@@ -106,9 +106,9 @@ const AddDayDialog = ({ open, onClose, onSave, startingLocation, previousDayDate
                     />
                     <FormControlLabel
                         control={
-                            <Checkbox checked={usePrevStops} onChange={(e) => setUsePrevStops(e.target.checked)} />
+                            <Checkbox checked={!usePrevStops} onChange={(e) => setUsePrevStops(!e.target.checked)} />
                         }
-                        label="Use Previous Stops"
+                        label="Don't reuse locations"
                     />
                     {infoMessage.message && (
                         <Alert
