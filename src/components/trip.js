@@ -46,11 +46,8 @@ import { RegenDayDialog } from "./regen-day-dialog";
 
 const libraries = ["places", "marker", "geometry"];
 
-const existingTripData = JSON.parse(localStorage.getItem("trip_data"));
-const tripData = existingTripData ? existingTripData : JSON.parse(sessionStorage.getItem("trip_data"));
-
-const existingTripID = localStorage.getItem("trip_id");
-let tripID = existingTripID ? existingTripID : "";
+let tripID = localStorage.getItem("trip_id");
+let tripData = JSON.parse(sessionStorage.getItem("trip_data"));
 
 export default function Trip() {
     const { getAccessTokenSilently } = useAuth0();
@@ -58,11 +55,11 @@ export default function Trip() {
 
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
     const [days, setDays] = useState(
-        existingTripData
-            ? tripData.days.map((day) => {
+        tripData
+            ? [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
+            : tripData.days.map((day) => {
                   return { ...day.routeStops, placeResponses: [] };
               })
-            : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
     );
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [selectedNode, setSelectedNode] = useState(null);
@@ -146,7 +143,6 @@ export default function Trip() {
             if (tripID) {
 		await getTrip(accessToken, tripID, (tripData) => {
                     sessionStorage.setItem("trip_data", JSON.stringify(tripData));
-                    localStorage.setItem("trip_data", JSON.stringify(tripData));
                     fetchPermissions(tripID);
 		});
 		try {
@@ -179,7 +175,6 @@ export default function Trip() {
                     const accessToken = await getAccessTokenSilently();
                     await getTrip(accessToken, tripID, (tripData) => {
                         sessionStorage.setItem("trip_data", JSON.stringify(tripData));
-                        localStorage.setItem("trip_data", JSON.stringify(tripData));
                         localStorage.setItem("trip_id", tripID);
 			setTripName(tripData.name || "Untitled Trip");
 
@@ -1233,8 +1228,6 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
                 setIcon(<CheckBoxOutlinedIcon color="success" />);
             });
             await getTrip(accessToken, tripID, (tripData) => {
-                localStorage.setItem("trip_data", JSON.stringify(tripData));
-                localStorage.setItem("trip_name", tripData.name);
 		fetchPermissions();
             });
         } catch (error) {

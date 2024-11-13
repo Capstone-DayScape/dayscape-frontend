@@ -196,8 +196,7 @@ const MyTripsTab = () => {
 
         await getTrip(accessToken, tripId, (tripData) => {
             localStorage.setItem("trip_id", tripId);
-            localStorage.setItem("trip_name", tripName);
-            localStorage.setItem("trip_data", JSON.stringify(tripData));
+            sessionStorage.setItem("trip_data", JSON.stringify(tripData));
 
             window.location.href = "/trip"; // Redirect to the trip page
         });
