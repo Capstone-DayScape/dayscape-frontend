@@ -1,6 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import CallIcon from "@mui/icons-material/Call";
 import CheckBoxOutlinedIcon from "@mui/icons-material/CheckBoxOutlined";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
@@ -8,15 +9,15 @@ import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import PublicIcon from "@mui/icons-material/Public";
 import ReplayIcon from "@mui/icons-material/Replay";
 import SaveIcon from "@mui/icons-material/Save";
-import { useNavigate } from 'react-router-dom';
 import ShareIcon from "@mui/icons-material/Share";
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import config from "../config";
-import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
-import axios from 'axios';
 import SyncIcon from "@mui/icons-material/Sync";
+import { Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import config from "../config";
 
 import {
+    Alert,
     Box,
     Button,
     Card,
@@ -29,8 +30,7 @@ import {
     Stack,
     TextField,
     Tooltip,
-    Typography,
-    Alert
+    Typography
 } from "@mui/material";
 import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
 import dayjs from "dayjs";
@@ -60,7 +60,7 @@ export default function Trip() {
     const [days, setDays] = useState(
         existingTripData
             ? tripData.days.map((day) => {
-                  return { ...day.routeStops, placeResponses: [] };
+                  return { ...day.routeStops };
               })
             : [{ placeResponses: [], markers: [], routePath: [], travelTimes: [], durations: {}, notes: {} }]
     );
@@ -78,21 +78,21 @@ export default function Trip() {
     const [hasEditPermission, setHasEditPermission] = useState(true);
 
     const fetchEditPermissions = useCallback(async () => {
-	if (!tripID) {
+        if (!tripID) {
             // Skip checking permissions if there's no trip_id yet
             setHasEditPermission(true);
             return;
-	}
-	const accessToken = await getAccessTokenSilently();
-	try {
+        }
+        const accessToken = await getAccessTokenSilently();
+        try {
             const response = await axios.get(`${config.backend_endpoint}/api/private/get_can_edit?trip_id=${tripID}`, {
-		headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
             });
             setHasEditPermission(response.data.can_edit);
-	} catch (error) {
+        } catch (error) {
             console.log("Failed to determine if the user can edit the trip.", error);
             setHasEditPermission(false);
-	}
+        }
     }, [getAccessTokenSilently]);
 
     // Whether user is the trip owner and should have a "share" button
@@ -100,76 +100,83 @@ export default function Trip() {
     // Whether sharing dialog is open
     const [isSharingDialogOpen, setIsSharingDialogOpen] = useState(false);
 
-    
     // viewers and editors for the trip sharing dialog
-    const [viewers, setViewers] = useState('');
-    const [editors, setEditors] = useState('');
+    const [viewers, setViewers] = useState("");
+    const [editors, setEditors] = useState("");
 
-    const fetchPermissions = useCallback(async (tripID) => {
-	if (!tripID) {
-            // Skip checking permissions if there's no trip_id yet
-            setHasSharePermission(true);
-            return;
-	}
-	
-	const accessToken = await getAccessTokenSilently();
-	try {
-            const response = await axios.get(`${config.backend_endpoint}/api/private/get_is_trip_owner?trip_id=${tripID}`, {
-		headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
-            });
-
-            if (response.data.is_owner) {
-		setHasSharePermission(true);
-		const viewersResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_viewers?trip_id=${tripID}`, {
-                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
-		});
-		const editorsResponse = await axios.get(`${config.backend_endpoint}/api/private/get_trip_editors?trip_id=${tripID}`, {
-                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
-		});
-
-		const viewersArray = Array.isArray(viewersResponse.data.viewers) ? viewersResponse.data.viewers : [];
-		const editorsArray = Array.isArray(editorsResponse.data.editors) ? editorsResponse.data.editors : [];
-		setViewers(viewersArray.join(', '));
-		setEditors(editorsArray.join(', '));
-            } else {
-		setHasSharePermission(false);
+    const fetchPermissions = useCallback(
+        async (tripID) => {
+            if (!tripID) {
+                // Skip checking permissions if there's no trip_id yet
+                setHasSharePermission(true);
+                return;
             }
-	} catch (error) {
-            console.log("Failed to determine if the user is the owner of the trip.", error);
-            setHasSharePermission(false);
-	}
-}, [getAccessTokenSilently]);
+
+            const accessToken = await getAccessTokenSilently();
+            try {
+                const response = await axios.get(`${config.backend_endpoint}/api/private/get_is_trip_owner?trip_id=${tripID}`, {
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                });
+
+                if (response.data.is_owner) {
+                    setHasSharePermission(true);
+                    const viewersResponse = await axios.get(
+                        `${config.backend_endpoint}/api/private/get_trip_viewers?trip_id=${tripID}`,
+                        {
+                            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                        }
+                    );
+                    const editorsResponse = await axios.get(
+                        `${config.backend_endpoint}/api/private/get_trip_editors?trip_id=${tripID}`,
+                        {
+                            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                        }
+                    );
+
+                    const viewersArray = Array.isArray(viewersResponse.data.viewers) ? viewersResponse.data.viewers : [];
+                    const editorsArray = Array.isArray(editorsResponse.data.editors) ? editorsResponse.data.editors : [];
+                    setViewers(viewersArray.join(", "));
+                    setEditors(editorsArray.join(", "));
+                } else {
+                    setHasSharePermission(false);
+                }
+            } catch (error) {
+                console.log("Failed to determine if the user is the owner of the trip.", error);
+                setHasSharePermission(false);
+            }
+        },
+        [getAccessTokenSilently]
+    );
 
     const fetchTripData = useCallback(async () => {
-	try {
+        try {
             const accessToken = await getAccessTokenSilently();
             if (tripID) {
-		await getTrip(accessToken, tripID, (tripData) => {
+                await getTrip(accessToken, tripID, (tripData) => {
                     sessionStorage.setItem("trip_data", JSON.stringify(tripData));
                     localStorage.setItem("trip_data", JSON.stringify(tripData));
                     fetchPermissions(tripID);
-		});
-		try {
+                });
+                try {
                     const response = await axios.get(`${config.backend_endpoint}/api/private/get_trip_name?trip_id=${tripID}`, {
-			headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
                     });
                     if (response.data.trip_name) {
-			setTripName(response.data.trip_name);
-			sessionStorage.setItem("trip_name", response.data.trip_name);
+                        setTripName(response.data.trip_name);
+                        sessionStorage.setItem("trip_name", response.data.trip_name);
                     }
-		} catch (error) {
+                } catch (error) {
                     console.error("Failed to fetch trip name:", error);
-		}
+                }
             }
-	} catch (error) {
+        } catch (error) {
             console.error("Failed to fetch trip data:", error);
-	}
+        }
     }, [getAccessTokenSilently, fetchPermissions]);
-
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const tripIDFromURL = params.get('id');
+        const tripIDFromURL = params.get("id");
 
         if (tripIDFromURL) {
             tripID = tripIDFromURL;
@@ -181,10 +188,10 @@ export default function Trip() {
                         sessionStorage.setItem("trip_data", JSON.stringify(tripData));
                         localStorage.setItem("trip_data", JSON.stringify(tripData));
                         localStorage.setItem("trip_id", tripID);
-			setTripName(tripData.name || "Untitled Trip");
+                        setTripName(tripData.name || "Untitled Trip");
 
                         // reset the URL
-                        navigate('/trip', { replace: true });
+                        navigate("/trip", { replace: true });
                     });
                 } catch (error) {
                     console.error("Failed to fetch trip data:", error);
@@ -200,14 +207,14 @@ export default function Trip() {
     // attempt to enable sharing dialog
     useEffect(() => {
         fetchTripData();
-	fetchEditPermissions();
+        fetchEditPermissions();
     }, [getAccessTokenSilently, fetchPermissions, fetchTripData, fetchEditPermissions]);
 
     const handleOpenSharingDialog = async () => {
-	if (tripID) {
+        if (tripID) {
             await fetchPermissions(); // refresh permissions before opening the dialog
-            setIsSharingDialogOpen(true);	    
-	}
+            setIsSharingDialogOpen(true);
+        }
     };
 
     const handleCloseSharingDialog = () => {
@@ -219,9 +226,9 @@ export default function Trip() {
             const newTripData = tripData;
             newTripData.days = days.map((day, index) => {
                 // Removes placeResponses because it shows many deprecated errors that can't be removed/ignored.
-                const { placeResponses, ...rest } = day;
+                // const { placeResponses, ...rest } = day;
 
-                return { ...newTripData.days[index], routeStops: { ...rest } };
+                return { ...newTripData.days[index], routeStops: { ...day } };
             });
             window.sessionStorage.setItem("trip_data", JSON.stringify(newTripData));
         }
@@ -280,22 +287,30 @@ export default function Trip() {
             };
             setMapCenter(location); // Center the map on the selected location
 
-            const newDays = days;
-            newDays[0].markers = [
-                {
-                    position: location,
-                    label: "1",
-                    name: tripData.startingLocation.name,
-                    info: tripData.startingLocation.address,
-                    rating: tripData.startingLocation.rating || "N/A",
-                    user_ratings_total: tripData.startingLocation.user_ratings_total || "N/A",
-                    phone: tripData.startingLocation.international_phone_number || "",
-                    website: tripData.startingLocation.website || ""
-                }
-            ];
-            setDays(newDays);
+            if (!existingTripData) {
+                const newDays = days;
+                newDays[0].markers = [
+                    {
+                        position: location,
+                        label: "1",
+                        name: tripData.startingLocation.name,
+                        info: tripData.startingLocation.address,
+                        rating: tripData.startingLocation.rating || "N/A",
+                        user_ratings_total: tripData.startingLocation.user_ratings_total || "N/A",
+                        phone: tripData.startingLocation.international_phone_number || "",
+                        website: tripData.startingLocation.website || ""
+                    }
+                ];
+                setDays(newDays);
 
-            fetchNearbyPlaces(location, 0, false); // Fetch nearby places for the first day
+                fetchNearbyPlaces(location, 0, false); // Fetch nearby places for the first day
+            } else {
+                setDays(
+                    tripData.days.map((day) => {
+                        return { ...day.routeStops };
+                    })
+                );
+            }
         } else {
             console.error("Couldn't load data from session storage!");
         }
@@ -823,357 +838,386 @@ export default function Trip() {
 
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
-        {!hasEditPermission && (
-            <Box sx={{ width: '100%', mb: 2 }}>
-                <Alert severity="warning">
-                    You are in read-only mode and cannot edit this trip.
-                </Alert>
-            </Box>
-        )}
-            <Stack direction="column">
-            <Stack direction="column" className="trip-container">
-                <Stack
-                    direction="row"
-                    spacing={3}
-                    sx={{ justifyContent: "space-between", alignItems: "center", mt: 3, height: 50 }}>
-                    <Box display="flex" justifyContent="flex-start">
-                        <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
-                    </Box>
-                    <Box display="flex" justifyContent="flex-end">
-		    {hasEditPermission && (<SaveTripButton tripName={tripName} fetchPermissions={fetchPermissions} />)}			
-                    </Box>
-                </Stack>
-                <Box display="flex" alignItems="center" justifyContent="center" my={3}>
-                    <Box display="flex" alignItems="center">
-                        {days.map((_, index) => (
-                            <React.Fragment key={index}>
-                                <Box
-                                    onClick={() => setSelectedDayIndex(index)}
-                                    sx={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: "50%",
-                                        backgroundColor: selectedDayIndex === index ? "#4caf50" : "#1976d2",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        color: "white",
-                                        cursor: "pointer"
-                                    }}>
-                                    {index + 1}
-                                </Box>
-                                {index < days.length - 1 && (
-                                    <Box
-                                        sx={{
-                                            width: 35,
-                                            height: 2,
-                                            backgroundColor: "#686879"
-                                        }}
-                                    />
-                                )}
-                            </React.Fragment>
-                        ))}
-                        <Box
-                            sx={{
-                                width: 35,
-                                height: 2,
-                                backgroundColor: "#686879"
-                            }}
-                        />
-			<Box
-			    onClick={hasEditPermission ? handleAddDay : null}
-			    sx={{
-				width: 40,
-				height: 40,
-				borderRadius: "50%",
-				backgroundColor: hasEditPermission ? "#777777" : "#cccccc",
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-				color: "white",
-				cursor: hasEditPermission ? "pointer" : "not-allowed"
-			    }}>
-			    +
-			</Box>
-                    </Box>
+            {!hasEditPermission && (
+                <Box sx={{ width: "100%", mb: 2 }}>
+                    {" "}
+                    <Alert severity="warning">You are in read-only mode and cannot edit this trip.</Alert>{" "}
                 </Box>
-                <Stack direction={{ xs: "column", md: "row" }} className={`trip-content fade-in-fast`}>
-                    <Box className="nodes-container" sx={{ mt: -9 }}>
-                        <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
-                            <Typography variant="h5" gutterBottom color="#686879">
-                                {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
-                            </Typography>
-                            <Tooltip title="Regenerate Day" placement="right" arrow>
-                                <IconButton onClick={() => setIsRegenDayDialogOpen(true)} sx={{ ml: 1.2, mb: 1 }}>
-                                    <ReplayIcon />
-                                </IconButton>
-                            </Tooltip>
-                        </Box>
-                        {days[selectedDayIndex].markers.map(
-                            (marker, index) =>
-                                marker && (
+            )}
+            <Stack direction="column">
+                {" "}
+                <Stack direction="column" className="trip-container">
+                    {" "}
+                    <Stack
+                        direction="row"
+                        spacing={3}
+                        sx={{
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mt: 3,
+                            height: 50
+                        }}>
+                        <Box display="flex" justifyContent="flex-start">
+                            {" "}
+                            <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
+                        </Box>{" "}
+                        <Box display="flex" justifyContent="flex-end">
+                            {hasEditPermission && <SaveTripButton tripName={tripName} fetchPermissions={fetchPermissions} />}
+                        </Box>{" "}
+                    </Stack>{" "}
+                    <Box display="flex" alignItems="center" justifyContent="center" my={3}>
+                        {" "}
+                        <Box display="flex" alignItems="center">
+                            {days.map((_, index) => (
+                                <React.Fragment key={index}>
+                                    {" "}
                                     <Box
-                                        key={index}
-                                        display="flex"
-                                        flexDirection="column"
-                                        alignItems="center"
-                                        mb={2}
-                                        onClick={() => {
-                                            setSelectedNode(selectedNode?.name === marker.name ? null : marker);
-                                        }}
-                                        sx={{ cursor: "pointer" }}
-                                        className="node">
+                                        onClick={() => setSelectedDayIndex(index)}
+                                        sx={{
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: "50%",
+                                            backgroundColor: selectedDayIndex === index ? "#4caf50" : "#1976d2",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: "white",
+                                            cursor: "pointer"
+                                        }}>
+                                        {index + 1}
+                                    </Box>{" "}
+                                    {index < days.length - 1 && (
                                         <Box
-                                            display="flex"
-                                            flexDirection="column"
-                                            alignItems="center"
-                                            justifyContent="center"
-                                            bgcolor={selectedNode?.name === marker.name ? "#4caf50" : "primary.main"}
-                                            color="white"
-                                            borderRadius="16px"
-                                            padding="10px"
-                                            width="100%"
-                                            minWidth="265px"
-                                            minHeight="65px"
-                                            textAlign="center"
-                                            boxShadow={3}>
-                                            <Typography variant="h6">{marker.name}</Typography>
-                                        </Box>
-                                        {index < days[selectedDayIndex].markers.length - 1 && (
-                                            <Box ml={3} display="flex" alignItems="center">
-                                                <Box
-                                                    position="relative"
-                                                    width="2px"
-                                                    height="65px"
-                                                    bgcolor="#686879"
-                                                    mb={-2}
-                                                    sx={{
-                                                        "&::after": {
-                                                            content: '""',
-                                                            position: "absolute",
-                                                            bottom: 0,
-                                                            left: "50%",
-                                                            transform: "translateX(-50%)",
-                                                            borderLeft: "5px solid transparent",
-                                                            borderRight: "5px solid transparent",
-                                                            borderTop: "10px solid #686879"
-                                                        }
-                                                    }}
-                                                />
-                                                <Box display="flex" alignItems="center" ml={2}>
-                                                    {getTransportIcon(tripData.days[selectedDayIndex].transportationMode)}
-                                                    <Typography
-                                                        variant="body2"
-                                                        ml={1}
-                                                        color="#686879"
-                                                        sx={{
-                                                            width: "100px", // Set a fixed width
-                                                            whiteSpace: "nowrap", // Prevent text from wrapping
-                                                            overflow: "hidden", // Hide overflow text
-                                                            textOverflow: "ellipsis" // Add ellipsis for overflow text
-                                                        }}>
-                                                        {days[selectedDayIndex].travelTimes[index]}
-                                                    </Typography>
-                                                </Box>
-                                            </Box>
-                                        )}
-                                    </Box>
-                                )
-                        )}
-                        <Typography variant="body1" mt={2} align="center" color="#686879">
-                            Total Time: {calculateTotalTripDuration()}
-                        </Typography>
+                                            sx={{
+                                                width: 35,
+                                                height: 2,
+                                                backgroundColor: "#686879"
+                                            }}
+                                        />
+                                    )}
+                                </React.Fragment>
+                            ))}{" "}
+                            <Box
+                                sx={{
+                                    width: 35,
+                                    height: 2,
+                                    backgroundColor: "#686879"
+                                }}
+                            />{" "}
+                            <Box
+                                onClick={hasEditPermission ? handleAddDay : null}
+                                sx={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: "50%",
+                                    backgroundColor: hasEditPermission ? "#777777" : "#cccccc",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "white",
+                                    cursor: hasEditPermission ? "pointer" : "not-allowed"
+                                }}>
+                                {" "}
+                                +{" "}
+                            </Box>{" "}
+                        </Box>{" "}
                     </Box>{" "}
-                    <Box
-                        flex="1 1 auto"
-                        alignItems="center"
-                        className={`map-container ${selectedNode ? "map-container-half" : ""}`}>
-                        <GoogleMap
-                            id="map"
-                            onLoad={(map) => {
-                                mapRef.current = map;
-                            }}
-                            mapContainerStyle={{ width: "100%", height: "100%" }} // Ensure the map container has explicit width and height
-                            zoom={14}
-                            center={mapCenter}
-                            options={{ mapId: "651e26fab50abd83" }}>
+                    <Stack direction={{ xs: "column", md: "row" }} className={`trip-content fade-in-fast`}>
+                        {" "}
+                        <Box className="nodes-container" sx={{ mt: -9 }}>
+                            {" "}
+                            <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
+                                {" "}
+                                <Typography variant="h5" gutterBottom color="#686879">
+                                    {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
+                                </Typography>{" "}
+                                <Tooltip title="Regenerate Day" placement="right" arrow>
+                                    <IconButton onClick={() => setIsRegenDayDialogOpen(true)} sx={{ ml: 1.2, mb: 1 }}>
+                                        {" "}
+                                        <ReplayIcon />
+                                    </IconButton>{" "}
+                                </Tooltip>{" "}
+                            </Box>{" "}
                             {days[selectedDayIndex].markers.map(
                                 (marker, index) =>
                                     marker && (
-                                        <MarkerF
+                                        <Box
                                             key={index}
-                                            position={marker.position}
-                                            label={marker.label}
-                                            onClick={() => setSelectedNode(selectedNode?.name === marker.name ? null : marker)}
-                                        />
-                                    )
-                            )}
-                        </GoogleMap>
-                        {selectedNode && (
-                            <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }} className="node-info-popup">
-                                <CardContent>
-                                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                                        <Typography variant="h6" gutterBottom>
-                                            {selectedNode.name}
-                                        </Typography>{" "}
-                                        <Box display="flex" gap={1.5}>
-                                            {selectedNode.type && (
-                                                <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
-                                                    <Tooltip
-                                                        title="Regenerate Node"
-                                                        placement="left"
-                                                        arrow
-                                                        sx={{ justifySelf: "start" }}>
-                                                        <IconButton onClick={handleRegenerateNode} color="primary">
-                                                            <SyncIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Paper>
-                                            )}
-                                            {selectedNode.website?.trim() && (
-                                                <Button
-                                                    variant="outlined"
-                                                    color="primary"
-                                                    href={selectedNode.website}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    sx={{ textTransform: "none" }}
-                                                    startIcon={<PublicIcon />}>
-                                                    Website
-                                                </Button>
-                                            )}
-                                            {selectedNode.phone?.trim() && (
-                                                <Button
-                                                    variant="outlined"
-                                                    color="primary"
-                                                    href={`tel:${selectedNode.phone}`}
-                                                    sx={{ textTransform: "none" }}
-                                                    startIcon={<CallIcon />}>
-                                                    Call
-                                                </Button>
-                                            )}
-                                        </Box>
-                                    </Box>
-                                    <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
-                                        {selectedNode.info}
-                                    </Typography>
-                                    {!isNaN(parseFloat(selectedNode.rating)) && (
-                                        <Box display="flex" alignItems="center" sx={{ mt: -0.75, mb: 2, color: "gray" }}>
-                                            <Typography variant="body1" gutterBottom></Typography>
-                                            <Rating value={selectedNode.rating} readOnly precision={0.5} />
-                                        </Box>
-                                    )}
-                                    {selectedNode.types && (
-                                        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
-                                            <Typography variant="body1" sx={{ mt: 1 / 2 }}>
-                                                Types:
-                                            </Typography>
-                                            {selectedNode.types.map((tag, index) => (
-                                                <Chip
-                                                    variant="outlined"
-                                                    color={selectedNode.type === tag ? "primary" : "default"}
-                                                    label={tag}
-                                                    key={index}
-                                                />
-                                            ))}
-                                        </Stack>
-                                    )}
-                                    {selectedNode.label !== "1" && (
-                                        <>
-                                            <FormControl fullWidth variant="outlined" margin="normal">
-                                                <Typography variant="body1">Duration:</Typography>
-                                                <Box display="flex">
-                                                    <TextField
-                                                        label="Hours"
-                                                        type="number"
-                                                        variant="outlined"
-                                                        margin="normal"
-                                                        value={days[selectedDayIndex].durations[selectedNode.name]?.hours}
-                                                        onChange={handleHoursChange}
-                                                        style={{ marginRight: "10px" }}
-                                                        slotProps={{ htmlInput: { min: 0 } }}
-                                                    />
-                                                    <TextField
-                                                        label="Minutes"
-                                                        type="number"
-                                                        variant="outlined"
-                                                        margin="normal"
-                                                        value={days[selectedDayIndex].durations[selectedNode.name]?.minutes}
-                                                        onChange={handleMinutesChange}
-                                                        slotProps={{ htmlInput: { min: 0 } }}
-                                                    />
+                                            display="flex"
+                                            flexDirection="column"
+                                            alignItems="center"
+                                            mb={2}
+                                            onClick={() => {
+                                                setSelectedNode(selectedNode?.name === marker.name ? null : marker);
+                                            }}
+                                            sx={{ cursor: "pointer" }}
+                                            className="node">
+                                            {" "}
+                                            <Box
+                                                display="flex"
+                                                flexDirection="column"
+                                                alignItems="center"
+                                                justifyContent="center"
+                                                bgcolor={selectedNode?.name === marker.name ? "#4caf50" : "primary.main"}
+                                                color="white"
+                                                borderRadius="16px"
+                                                padding="10px"
+                                                width="100%"
+                                                minWidth="265px"
+                                                minHeight="65px"
+                                                textAlign="center"
+                                                boxShadow={3}>
+                                                <Typography variant="h6">{marker.name}</Typography>
+                                            </Box>{" "}
+                                            {index < days[selectedDayIndex].markers.length - 1 && (
+                                                <Box ml={3} display="flex" alignItems="center">
+                                                    {" "}
+                                                    <Box
+                                                        position="relative"
+                                                        width="2px"
+                                                        height="65px"
+                                                        bgcolor="#686879"
+                                                        mb={-2}
+                                                        sx={{
+                                                            "&::after": {
+                                                                content: '""',
+                                                                position: "absolute",
+                                                                bottom: 0,
+                                                                left: "50%",
+                                                                transform: "translateX(-50%)",
+                                                                borderLeft: "5px solid transparent",
+                                                                borderRight: "5px solid transparent",
+                                                                borderTop: "10px solid #686879"
+                                                            }
+                                                        }}
+                                                    />{" "}
+                                                    <Box display="flex" alignItems="center" ml={2}>
+                                                        {getTransportIcon(tripData.days[selectedDayIndex].transportationMode)}
+                                                        <Typography
+                                                            variant="body2"
+                                                            ml={1}
+                                                            color="#686879"
+                                                            sx={{
+                                                                width: "100px", // Set a fixed width
+                                                                whiteSpace: "nowrap", // Prevent text from wrapping
+                                                                overflow: "hidden", // Hide overflow text
+                                                                textOverflow: "ellipsis" // Add ellipsis for overflow text
+                                                            }}>
+                                                            {days[selectedDayIndex].travelTimes[index]}
+                                                        </Typography>{" "}
+                                                    </Box>{" "}
                                                 </Box>
-                                            </FormControl>
-                                        </>
-                                    )}
-                                    <TextField
-                                        label="Enter Notes"
-                                        multiline
-                                        rows={4}
-                                        variant="outlined"
-                                        fullWidth
-                                        value={days[selectedDayIndex].notes[selectedNode.name] || ""}
-                                        onChange={handleNotesChange}
-                                    />
-                                </CardContent>
-                            </Card>
-                        )}
-                    </Box>
-                </Stack>
-        </Stack>
-
-	    {hasSharePermission && (
-                <Tooltip title="Share Trip">
-                    <IconButton
-                        onClick={handleOpenSharingDialog}
-                        sx={{
-                            position: "fixed",
-                            bottom: 16,
-                            right: 16,
-                            backgroundColor: "white",
-                            boxShadow: 1 }}>
-                        <ShareIcon />
-                    </IconButton>
-                </Tooltip>
-            )}
-
-            <SharingDialog
-                open={isSharingDialogOpen}
-                onClose={handleCloseSharingDialog}
-                viewers={viewers}
-                editors={editors}
-		tripID={tripID}
-                setViewers={setViewers}
-                setEditors={setEditors}
-            />
-	
-            <AddDayDialog
-                open={isAddDayDialogOpen}
-                onClose={() => setIsAddDayDialogOpen(false)}
-                onSave={handleSaveDay}
-                startingLocation={tripData.startingLocation.name}
-                previousDayDate={dayjs().format("YYYY-MM-DD")}
-            />
-            <NodeInfoDialog
-                open={isNodeInfoDialogOpen}
-                onClose={() => {
-                    setIsNodeInfoDialogOpen(false);
-                    setSelectedNode(null); // Unselect the node
-                }}
-                selectedNode={selectedNode}
-                days={days}
-                selectedDayIndex={selectedDayIndex}
-                handleHoursChange={handleHoursChange}
-                handleMinutesChange={handleMinutesChange}
-                handleNotesChange={handleNotesChange}
-                handleRegenerateNode={handleRegenerateNode}
-            />{" "}
-            <RegenDayDialog
-                open={isRegenDayDialogOpen}
-                onClose={() => setIsRegenDayDialogOpen(false)}
-                onAccept={handleRegenerateDay}
-            />
-        </Stack>
+                                            )}
+                                        </Box>
+                                    )
+                            )}{" "}
+                            <Typography variant="body1" mt={2} align="center" color="#686879">
+                                {" "}
+                                Total Time: {calculateTotalTripDuration()}
+                            </Typography>{" "}
+                        </Box>{" "}
+                        <Box
+                            flex="1 1 auto"
+                            alignItems="center"
+                            className={`map-container ${selectedNode ? "map-container-half" : ""}`}>
+                            <GoogleMap
+                                id="map"
+                                onLoad={(map) => {
+                                    mapRef.current = map;
+                                }}
+                                mapContainerStyle={{
+                                    width: "100%",
+                                    height: "100%"
+                                }} // Ensure the map container has explicit width and height
+                                zoom={14}
+                                center={mapCenter}
+                                options={{ mapId: "651e26fab50abd83" }}>
+                                {days[selectedDayIndex].markers.map(
+                                    (marker, index) =>
+                                        marker && (
+                                            <MarkerF
+                                                key={index}
+                                                position={marker.position}
+                                                label={marker.label}
+                                                onClick={() =>
+                                                    setSelectedNode(selectedNode?.name === marker.name ? null : marker)
+                                                }
+                                            />
+                                        )
+                                )}
+                            </GoogleMap>{" "}
+                            {selectedNode && (
+                                <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }} className="node-info-popup">
+                                    <CardContent>
+                                        {" "}
+                                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                                            {" "}
+                                            <Typography variant="h6" gutterBottom>
+                                                {selectedNode.name}
+                                            </Typography>{" "}
+                                            <Box display="flex" gap={1.5}>
+                                                {selectedNode.type && (
+                                                    <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
+                                                        <Tooltip
+                                                            title="Regenerate Node"
+                                                            placement="left"
+                                                            arrow
+                                                            sx={{ justifySelf: "start" }}>
+                                                            <IconButton onClick={handleRegenerateNode} color="primary">
+                                                                {" "}
+                                                                <SyncIcon />
+                                                            </IconButton>{" "}
+                                                        </Tooltip>{" "}
+                                                    </Paper>
+                                                )}{" "}
+                                                {selectedNode.website?.trim() && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="primary"
+                                                        href={selectedNode.website}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        sx={{ textTransform: "none" }}
+                                                        startIcon={<PublicIcon />}>
+                                                        {" "}
+                                                        Website{" "}
+                                                    </Button>
+                                                )}{" "}
+                                                {selectedNode.phone?.trim() && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="primary"
+                                                        href={`tel:${selectedNode.phone}`}
+                                                        sx={{ textTransform: "none" }}
+                                                        startIcon={<CallIcon />}>
+                                                        {" "}
+                                                        Call{" "}
+                                                    </Button>
+                                                )}
+                                            </Box>{" "}
+                                        </Box>{" "}
+                                        <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
+                                            {selectedNode.info}
+                                        </Typography>{" "}
+                                        {!isNaN(parseFloat(selectedNode.rating)) && (
+                                            <Box display="flex" alignItems="center" sx={{ mt: -0.75, mb: 2, color: "gray" }}>
+                                                {" "}
+                                                <Typography variant="body1" gutterBottom></Typography>{" "}
+                                                <Rating value={selectedNode.rating} readOnly precision={0.5} />
+                                            </Box>
+                                        )}{" "}
+                                        {selectedNode.types && (
+                                            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
+                                                <Typography variant="body1" sx={{ mt: 1 / 2 }}>
+                                                    {" "}
+                                                    Types:{" "}
+                                                </Typography>{" "}
+                                                {selectedNode.types.map((tag, index) => (
+                                                    <Chip
+                                                        variant="outlined"
+                                                        color={selectedNode.type === tag ? "primary" : "default"}
+                                                        label={tag}
+                                                        key={index}
+                                                    />
+                                                ))}
+                                            </Stack>
+                                        )}{" "}
+                                        {selectedNode.label !== "1" && (
+                                            <>
+                                                <FormControl fullWidth variant="outlined" margin="normal">
+                                                    <Typography variant="body1">Duration:</Typography>{" "}
+                                                    <Box display="flex">
+                                                        <TextField
+                                                            label="Hours"
+                                                            type="number"
+                                                            variant="outlined"
+                                                            margin="normal"
+                                                            value={days[selectedDayIndex].durations[selectedNode.name]?.hours}
+                                                            onChange={handleHoursChange}
+                                                            style={{ marginRight: "10px" }}
+                                                            slotProps={{ htmlInput: { min: 0 } }}
+                                                        />{" "}
+                                                        <TextField
+                                                            label="Minutes"
+                                                            type="number"
+                                                            variant="outlined"
+                                                            margin="normal"
+                                                            value={days[selectedDayIndex].durations[selectedNode.name]?.minutes}
+                                                            onChange={handleMinutesChange}
+                                                            slotProps={{ htmlInput: { min: 0 } }}
+                                                        />
+                                                    </Box>{" "}
+                                                </FormControl>
+                                            </>
+                                        )}{" "}
+                                        <TextField
+                                            label="Enter Notes"
+                                            multiline
+                                            rows={4}
+                                            variant="outlined"
+                                            fullWidth
+                                            value={days[selectedDayIndex].notes[selectedNode.name] || ""}
+                                            onChange={handleNotesChange}
+                                        />{" "}
+                                    </CardContent>{" "}
+                                </Card>
+                            )}
+                        </Box>{" "}
+                    </Stack>{" "}
+                </Stack>{" "}
+                {hasSharePermission && (
+                    <Tooltip title="Share Trip">
+                        {" "}
+                        <IconButton
+                            onClick={handleOpenSharingDialog}
+                            sx={{
+                                position: "fixed",
+                                bottom: 16,
+                                right: 16,
+                                backgroundColor: "white",
+                                boxShadow: 1
+                            }}>
+                            {" "}
+                            <ShareIcon />{" "}
+                        </IconButton>{" "}
+                    </Tooltip>
+                )}{" "}
+                <SharingDialog
+                    open={isSharingDialogOpen}
+                    onClose={handleCloseSharingDialog}
+                    viewers={viewers}
+                    editors={editors}
+                    tripID={tripID}
+                    setViewers={setViewers}
+                    setEditors={setEditors}
+                />{" "}
+                <AddDayDialog
+                    open={isAddDayDialogOpen}
+                    onClose={() => setIsAddDayDialogOpen(false)}
+                    onSave={handleSaveDay}
+                    startingLocation={tripData.startingLocation.name}
+                    previousDayDate={dayjs().format("YYYY-MM-DD")}
+                />
+                <NodeInfoDialog
+                    open={isNodeInfoDialogOpen}
+                    onClose={() => {
+                        setIsNodeInfoDialogOpen(false);
+                        setSelectedNode(null); // Unselect the node
+                    }}
+                    selectedNode={selectedNode}
+                    days={days}
+                    selectedDayIndex={selectedDayIndex}
+                    handleHoursChange={handleHoursChange}
+                    handleMinutesChange={handleMinutesChange}
+                    handleNotesChange={handleNotesChange}
+                    handleRegenerateNode={handleRegenerateNode}
+                />{" "}
+                <RegenDayDialog
+                    open={isRegenDayDialogOpen}
+                    onClose={() => setIsRegenDayDialogOpen(false)}
+                    onAccept={handleRegenerateDay}
+                />{" "}
+            </Stack>
         </LoadScript>
     );
 }
@@ -1216,7 +1260,7 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
     }, [tripName]);
 
     const handleSave = async () => {
-	if (disabled) return;
+        if (disabled) return;
         try {
             const tripData = JSON.parse(sessionStorage.getItem("trip_data"));
             const accessToken = await getAccessTokenSilently();
@@ -1235,7 +1279,7 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
             await getTrip(accessToken, tripID, (tripData) => {
                 localStorage.setItem("trip_data", JSON.stringify(tripData));
                 localStorage.setItem("trip_name", tripData.name);
-		fetchPermissions();
+                fetchPermissions();
             });
         } catch (error) {
             console.error(error);
@@ -1244,7 +1288,8 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
 
     return (
         <Tooltip title="Save Trip" placement="left" arrow>
-            <IconButton variant="outlined" onClick={handleSave} disabled={disabled}>		
+            {" "}
+            <IconButton variant="outlined" onClick={handleSave} disabled={disabled}>
                 {icon}
             </IconButton>
         </Tooltip>
@@ -1259,7 +1304,7 @@ const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors
         const accessToken = await getAccessTokenSilently();
         try {
             await axios.post(
-		// convert string of emails back into list for API
+                // convert string of emails back into list for API
                 `${config.backend_endpoint}/api/private/save_trip?trip_id=${tripID}&view=${viewers
                     .split(",")
                     .map((v) => v.trim())
@@ -1267,10 +1312,14 @@ const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors
                     .split(",")
                     .map((e) => e.trim())
                     .join(", ")}`,
-                null,		// Not modifying trip data
-                {headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    "Content-Type": "application/json"}});
+                null, // Not modifying trip data
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
             onClose();
         } catch (error) {
             console.error("Failed to save editors or viewers:", error);
@@ -1278,14 +1327,14 @@ const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors
     };
 
     const handleCopyLink = () => {
-	navigator.clipboard.writeText(tripLink).then(() => {
-            setCopied(true); 
+        navigator.clipboard.writeText(tripLink).then(() => {
+            setCopied(true);
             setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
-	});
+        });
     };
 
-// whether sharing link was copied
-const [copied, setCopied] = useState(false);
+    // whether sharing link was copied
+    const [copied, setCopied] = useState(false);
     return (
         <Dialog open={open} onClose={onClose}>
             <DialogTitle>Share Trip</DialogTitle>
@@ -1314,12 +1363,12 @@ const [copied, setCopied] = useState(false);
                         margin="dense"
                         value={tripLink}
                         InputProps={{
-                            readOnly: true,
+                            readOnly: true
                         }}
-                    />
-		    <IconButton onClick={handleCopyLink} aria-label="copy trip link" color="primary">
-			{copied ? <CheckBoxOutlinedIcon color="success" /> : <ContentCopyIcon />}
-		    </IconButton>
+                    />{" "}
+                    <IconButton onClick={handleCopyLink} aria-label="copy trip link" color="primary">
+                        {copied ? <CheckBoxOutlinedIcon color="success" /> : <ContentCopyIcon />}
+                    </IconButton>
                 </Box>
             </DialogContent>
             <DialogActions>
