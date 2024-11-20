@@ -4,9 +4,12 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
-import React from "react";
+import React, { useState } from "react";
+import AddNodeDialog from "./add-node-dialog";
 
 export default function MarkerList({ tripData, selectedNode, onSelectedNode, selectedDayIndex, days }) {
+    const [isAddNodeDialogOpen, setAddNodeDialogOpen] = useState(false);
+
     /**
      * Returns the icon for the transportation mode.
      * @param {google.maps.TravelMode} mode Mode of transportation
@@ -28,8 +31,8 @@ export default function MarkerList({ tripData, selectedNode, onSelectedNode, sel
         }
     };
 
-    const handleAddNode = () => {
-        console.log("Add new node!");
+    const handleAddNode = (tag) => {
+        console.log("Add new node!", tag);
     };
 
     return (
@@ -106,10 +109,20 @@ export default function MarkerList({ tripData, selectedNode, onSelectedNode, sel
                     )
             )}
             <Tooltip title="Add New Node" arrow placement="right">
-                <IconButton onClick={handleAddNode}>
+                <IconButton
+                    onClick={() => {
+                        setAddNodeDialogOpen(true);
+                    }}>
                     <AddIcon />
                 </IconButton>
             </Tooltip>
+            <AddNodeDialog
+                open={isAddNodeDialogOpen}
+                onClose={() => setAddNodeDialogOpen(false)}
+                days={days}
+                selectedDayIndex={selectedDayIndex}
+                handleAddNode={handleAddNode}
+            />
         </>
     );
 }
