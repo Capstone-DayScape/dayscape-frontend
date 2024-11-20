@@ -3,6 +3,7 @@ import CallIcon from "@mui/icons-material/Call";
 import CheckBoxOutlinedIcon from "@mui/icons-material/CheckBoxOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import PublicIcon from "@mui/icons-material/Public";
+import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import ReplayIcon from "@mui/icons-material/Replay";
 import SaveIcon from "@mui/icons-material/Save";
 import ShareIcon from "@mui/icons-material/Share";
@@ -485,7 +486,7 @@ export default function Trip() {
      * @param {{duration: {hours: number, minutes: number}, name: *, rating: *, position: {lng: *, lat: *}, label: string, info: *}[]} places
      * List of destinations
      * @param {number} dayIndex Current day index
-     * @param {string} transportMode Mode of transportation
+     * @param {google.maps.TravelMode} transportMode Mode of transportation
      */
     const calculateRoute = (origin, places, dayIndex, transportMode) => {
         const directionsService = new window.google.maps.DirectionsService();
@@ -960,17 +961,30 @@ export default function Trip() {
                                             </Typography>
                                             <Box display="flex" gap={1.5}>
                                                 {selectedNode.type && (
-                                                    <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
-                                                        <Tooltip
-                                                            title="Regenerate Node"
-                                                            placement="left"
-                                                            arrow
-                                                            sx={{ justifySelf: "start" }}>
-                                                            <IconButton onClick={handleRegenerateNode} color="primary">
-                                                                <SyncIcon />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    </Paper>
+                                                    <>
+                                                        <Paper variant="outlined" sx={{ borderColor: "rgba(211, 47, 47, 0.5)" }}>
+                                                            <Tooltip title="Delete Node" placement="bottom" arrow>
+                                                                <IconButton
+                                                                    onClick={() => {
+                                                                        console.log("Delete Node!");
+                                                                    }}
+                                                                    color="error">
+                                                                    <RemoveCircleIcon />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        </Paper>
+                                                        <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
+                                                            <Tooltip
+                                                                title="Regenerate Node"
+                                                                placement="bottom"
+                                                                arrow
+                                                                sx={{ justifySelf: "start" }}>
+                                                                <IconButton onClick={handleRegenerateNode} color="primary">
+                                                                    <SyncIcon />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        </Paper>
+                                                    </>
                                                 )}
                                                 {selectedNode.website?.trim() && (
                                                     <Button

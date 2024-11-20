@@ -1,11 +1,17 @@
+import AddIcon from "@mui/icons-material/Add";
 import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import DirectionsTransitIcon from "@mui/icons-material/DirectionsTransit";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
-import { Box, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import React from "react";
 
 export default function MarkerList({ tripData, selectedNode, onSelectedNode, selectedDayIndex, days }) {
+    /**
+     * Returns the icon for the transportation mode.
+     * @param {google.maps.TravelMode} mode Mode of transportation
+     * @returns {React.ReactElement|null} Icon
+     */
     const getTransportIcon = (mode) => {
         const iconProps = { sx: { color: "#666666" } }; // Set the color here
         switch (mode) {
@@ -20,6 +26,10 @@ export default function MarkerList({ tripData, selectedNode, onSelectedNode, sel
             default:
                 return null;
         }
+    };
+
+    const handleAddNode = () => {
+        console.log("Add new node!");
     };
 
     return (
@@ -95,6 +105,11 @@ export default function MarkerList({ tripData, selectedNode, onSelectedNode, sel
                         </Box>
                     )
             )}
+            <Tooltip title="Add New Node" arrow placement="right">
+                <IconButton onClick={handleAddNode}>
+                    <AddIcon />
+                </IconButton>
+            </Tooltip>
         </>
     );
 }
