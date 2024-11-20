@@ -820,6 +820,27 @@ export default function Trip() {
         }
     };
 
+    const handleDeleteNode = () => {
+        const idxToRemove = parseInt(selectedNode.label) - 1;
+
+        setDays((prev) => {
+            const newDayData = [...prev];
+            const { markers } = newDayData[selectedDayIndex];
+
+            markers.forEach((marker, index) => {
+                if (index >= idxToRemove) {
+                    marker.label = index.toString();
+                }
+            });
+            markers.splice(idxToRemove, 1);
+
+            newDayData[selectedDayIndex].markers = markers;
+            return newDayData;
+        });
+
+        setSelectedNode(null);
+    };
+
     return (
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
             {!hasEditPermission && (
@@ -964,11 +985,7 @@ export default function Trip() {
                                                     <>
                                                         <Paper variant="outlined" sx={{ borderColor: "rgba(211, 47, 47, 0.5)" }}>
                                                             <Tooltip title="Delete Node" placement="bottom" arrow>
-                                                                <IconButton
-                                                                    onClick={() => {
-                                                                        console.log("Delete Node!");
-                                                                    }}
-                                                                    color="error">
+                                                                <IconButton onClick={handleDeleteNode} color="error">
                                                                     <RemoveCircleIcon />
                                                                 </IconButton>
                                                             </Tooltip>
