@@ -823,20 +823,25 @@ export default function Trip() {
     const handleDeleteNode = () => {
         const idxToRemove = parseInt(selectedNode.label) - 1;
 
+        const { markers } = days[selectedDayIndex];
+
+        const newMarkers = [...markers];
+        newMarkers.splice(idxToRemove, 1);
+
         setDays((prev) => {
             const newDayData = [...prev];
-            const { markers } = newDayData[selectedDayIndex];
-
-            markers.forEach((marker, index) => {
-                if (index >= idxToRemove) {
-                    marker.label = index.toString();
-                }
-            });
-            markers.splice(idxToRemove, 1);
-
-            newDayData[selectedDayIndex].markers = markers;
+            newDayData[selectedDayIndex].markers = newMarkers;
             return newDayData;
         });
+
+        // eslint-disable-next-line no-unused-vars
+        const [_, ...rest] = newMarkers;
+
+        const location = {
+            lat: tripData.startingLocation.latitude || 0,
+            lng: tripData.startingLocation.longitude || 0
+        };
+        calculateRoute(location, rest, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
 
         setSelectedNode(null);
     };
