@@ -11,11 +11,6 @@ import ReplayIcon from "@mui/icons-material/Replay";
 import SaveIcon from "@mui/icons-material/Save";
 import ShareIcon from "@mui/icons-material/Share";
 import SyncIcon from "@mui/icons-material/Sync";
-import { Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import config from "../config";
-
 import {
     Alert,
     Box,
@@ -23,6 +18,10 @@ import {
     Card,
     CardContent,
     Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
     IconButton,
     Paper,
@@ -33,9 +32,12 @@ import {
     Typography
 } from "@mui/material";
 import { GoogleMap, LoadScript, MarkerF } from "@react-google-maps/api";
+import axios from "axios";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
+import config from "../config";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import NodeInfoDialog from "../components/node-info-dialog"; // Import the NodeInfoDialog component
@@ -840,14 +842,11 @@ export default function Trip() {
         <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries} onLoad={handleLoad}>
             {!hasEditPermission && (
                 <Box sx={{ width: "100%", mb: 2 }}>
-                    {" "}
-                    <Alert severity="warning">You are in read-only mode and cannot edit this trip.</Alert>{" "}
+                    <Alert severity="warning">You are in read-only mode and cannot edit this trip.</Alert>
                 </Box>
             )}
             <Stack direction="column">
-                {" "}
                 <Stack direction="column" className="trip-container">
-                    {" "}
                     <Stack
                         direction="row"
                         spacing={3}
@@ -858,19 +857,16 @@ export default function Trip() {
                             height: 50
                         }}>
                         <Box display="flex" justifyContent="flex-start">
-                            {" "}
                             <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
-                        </Box>{" "}
+                        </Box>
                         <Box display="flex" justifyContent="flex-end">
                             {hasEditPermission && <SaveTripButton tripName={tripName} fetchPermissions={fetchPermissions} />}
-                        </Box>{" "}
-                    </Stack>{" "}
+                        </Box>
+                    </Stack>
                     <Box display="flex" alignItems="center" justifyContent="center" my={3}>
-                        {" "}
                         <Box display="flex" alignItems="center">
                             {days.map((_, index) => (
                                 <React.Fragment key={index}>
-                                    {" "}
                                     <Box
                                         onClick={() => setSelectedDayIndex(index)}
                                         sx={{
@@ -885,7 +881,7 @@ export default function Trip() {
                                             cursor: "pointer"
                                         }}>
                                         {index + 1}
-                                    </Box>{" "}
+                                    </Box>
                                     {index < days.length - 1 && (
                                         <Box
                                             sx={{
@@ -896,14 +892,14 @@ export default function Trip() {
                                         />
                                     )}
                                 </React.Fragment>
-                            ))}{" "}
+                            ))}
                             <Box
                                 sx={{
                                     width: 35,
                                     height: 2,
                                     backgroundColor: "#686879"
                                 }}
-                            />{" "}
+                            />
                             <Box
                                 onClick={hasEditPermission ? handleAddDay : null}
                                 sx={{
@@ -917,27 +913,22 @@ export default function Trip() {
                                     color: "white",
                                     cursor: hasEditPermission ? "pointer" : "not-allowed"
                                 }}>
-                                {" "}
-                                +{" "}
-                            </Box>{" "}
-                        </Box>{" "}
-                    </Box>{" "}
+                                +
+                            </Box>
+                        </Box>
+                    </Box>
                     <Stack direction={{ xs: "column", md: "row" }} className={`trip-content fade-in-fast`}>
-                        {" "}
                         <Box className="nodes-container" sx={{ mt: -9 }}>
-                            {" "}
                             <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
-                                {" "}
                                 <Typography variant="h5" gutterBottom color="#686879">
                                     {dayjs(tripData.startingDate).add(selectedDayIndex, "day").format("MMMM DD, YYYY")}
-                                </Typography>{" "}
+                                </Typography>
                                 <Tooltip title="Regenerate Day" placement="right" arrow>
                                     <IconButton onClick={() => setIsRegenDayDialogOpen(true)} sx={{ ml: 1.2, mb: 1 }}>
-                                        {" "}
                                         <ReplayIcon />
-                                    </IconButton>{" "}
-                                </Tooltip>{" "}
-                            </Box>{" "}
+                                    </IconButton>
+                                </Tooltip>
+                            </Box>
                             {days[selectedDayIndex].markers.map(
                                 (marker, index) =>
                                     marker && (
@@ -952,7 +943,6 @@ export default function Trip() {
                                             }}
                                             sx={{ cursor: "pointer" }}
                                             className="node">
-                                            {" "}
                                             <Box
                                                 display="flex"
                                                 flexDirection="column"
@@ -968,10 +958,9 @@ export default function Trip() {
                                                 textAlign="center"
                                                 boxShadow={3}>
                                                 <Typography variant="h6">{marker.name}</Typography>
-                                            </Box>{" "}
+                                            </Box>
                                             {index < days[selectedDayIndex].markers.length - 1 && (
                                                 <Box ml={3} display="flex" alignItems="center">
-                                                    {" "}
                                                     <Box
                                                         position="relative"
                                                         width="2px"
@@ -990,7 +979,7 @@ export default function Trip() {
                                                                 borderTop: "10px solid #686879"
                                                             }
                                                         }}
-                                                    />{" "}
+                                                    />
                                                     <Box display="flex" alignItems="center" ml={2}>
                                                         {getTransportIcon(tripData.days[selectedDayIndex].transportationMode)}
                                                         <Typography
@@ -1004,18 +993,17 @@ export default function Trip() {
                                                                 textOverflow: "ellipsis" // Add ellipsis for overflow text
                                                             }}>
                                                             {days[selectedDayIndex].travelTimes[index]}
-                                                        </Typography>{" "}
-                                                    </Box>{" "}
+                                                        </Typography>
+                                                    </Box>
                                                 </Box>
                                             )}
                                         </Box>
                                     )
-                            )}{" "}
+                            )}
                             <Typography variant="body1" mt={2} align="center" color="#686879">
-                                {" "}
                                 Total Time: {calculateTotalTripDuration()}
-                            </Typography>{" "}
-                        </Box>{" "}
+                            </Typography>
+                        </Box>
                         <Box
                             flex="1 1 auto"
                             alignItems="center"
@@ -1045,16 +1033,14 @@ export default function Trip() {
                                             />
                                         )
                                 )}
-                            </GoogleMap>{" "}
+                            </GoogleMap>
                             {selectedNode && (
                                 <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }} className="node-info-popup">
                                     <CardContent>
-                                        {" "}
                                         <Box display="flex" justifyContent="space-between" alignItems="center">
-                                            {" "}
                                             <Typography variant="h6" gutterBottom>
                                                 {selectedNode.name}
-                                            </Typography>{" "}
+                                            </Typography>
                                             <Box display="flex" gap={1.5}>
                                                 {selectedNode.type && (
                                                     <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
@@ -1064,12 +1050,11 @@ export default function Trip() {
                                                             arrow
                                                             sx={{ justifySelf: "start" }}>
                                                             <IconButton onClick={handleRegenerateNode} color="primary">
-                                                                {" "}
                                                                 <SyncIcon />
-                                                            </IconButton>{" "}
-                                                        </Tooltip>{" "}
+                                                            </IconButton>
+                                                        </Tooltip>
                                                     </Paper>
-                                                )}{" "}
+                                                )}
                                                 {selectedNode.website?.trim() && (
                                                     <Button
                                                         variant="outlined"
@@ -1079,10 +1064,9 @@ export default function Trip() {
                                                         rel="noopener noreferrer"
                                                         sx={{ textTransform: "none" }}
                                                         startIcon={<PublicIcon />}>
-                                                        {" "}
-                                                        Website{" "}
+                                                        Website
                                                     </Button>
-                                                )}{" "}
+                                                )}
                                                 {selectedNode.phone?.trim() && (
                                                     <Button
                                                         variant="outlined"
@@ -1090,28 +1074,25 @@ export default function Trip() {
                                                         href={`tel:${selectedNode.phone}`}
                                                         sx={{ textTransform: "none" }}
                                                         startIcon={<CallIcon />}>
-                                                        {" "}
-                                                        Call{" "}
+                                                        Call
                                                     </Button>
                                                 )}
-                                            </Box>{" "}
-                                        </Box>{" "}
+                                            </Box>
+                                        </Box>
                                         <Typography variant="body1" gutterBottom sx={{ mt: -0.75, mb: 2, color: "gray" }}>
                                             {selectedNode.info}
-                                        </Typography>{" "}
+                                        </Typography>
                                         {!isNaN(parseFloat(selectedNode.rating)) && (
                                             <Box display="flex" alignItems="center" sx={{ mt: -0.75, mb: 2, color: "gray" }}>
-                                                {" "}
-                                                <Typography variant="body1" gutterBottom></Typography>{" "}
+                                                <Typography variant="body1" gutterBottom></Typography>
                                                 <Rating value={selectedNode.rating} readOnly precision={0.5} />
                                             </Box>
-                                        )}{" "}
+                                        )}
                                         {selectedNode.types && (
                                             <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
                                                 <Typography variant="body1" sx={{ mt: 1 / 2 }}>
-                                                    {" "}
-                                                    Types:{" "}
-                                                </Typography>{" "}
+                                                    Types:
+                                                </Typography>
                                                 {selectedNode.types.map((tag, index) => (
                                                     <Chip
                                                         variant="outlined"
@@ -1121,11 +1102,11 @@ export default function Trip() {
                                                     />
                                                 ))}
                                             </Stack>
-                                        )}{" "}
+                                        )}
                                         {selectedNode.label !== "1" && (
                                             <>
                                                 <FormControl fullWidth variant="outlined" margin="normal">
-                                                    <Typography variant="body1">Duration:</Typography>{" "}
+                                                    <Typography variant="body1">Duration:</Typography>
                                                     <Box display="flex">
                                                         <TextField
                                                             label="Hours"
@@ -1136,7 +1117,7 @@ export default function Trip() {
                                                             onChange={handleHoursChange}
                                                             style={{ marginRight: "10px" }}
                                                             slotProps={{ htmlInput: { min: 0 } }}
-                                                        />{" "}
+                                                        />
                                                         <TextField
                                                             label="Minutes"
                                                             type="number"
@@ -1146,10 +1127,10 @@ export default function Trip() {
                                                             onChange={handleMinutesChange}
                                                             slotProps={{ htmlInput: { min: 0 } }}
                                                         />
-                                                    </Box>{" "}
+                                                    </Box>
                                                 </FormControl>
                                             </>
-                                        )}{" "}
+                                        )}
                                         <TextField
                                             label="Enter Notes"
                                             multiline
@@ -1158,16 +1139,15 @@ export default function Trip() {
                                             fullWidth
                                             value={days[selectedDayIndex].notes[selectedNode.name] || ""}
                                             onChange={handleNotesChange}
-                                        />{" "}
-                                    </CardContent>{" "}
+                                        />
+                                    </CardContent>
                                 </Card>
                             )}
-                        </Box>{" "}
-                    </Stack>{" "}
-                </Stack>{" "}
+                        </Box>
+                    </Stack>
+                </Stack>
                 {hasSharePermission && (
                     <Tooltip title="Share Trip">
-                        {" "}
                         <IconButton
                             onClick={handleOpenSharingDialog}
                             sx={{
@@ -1177,11 +1157,10 @@ export default function Trip() {
                                 backgroundColor: "white",
                                 boxShadow: 1
                             }}>
-                            {" "}
-                            <ShareIcon />{" "}
-                        </IconButton>{" "}
+                            <ShareIcon />
+                        </IconButton>
                     </Tooltip>
-                )}{" "}
+                )}
                 <SharingDialog
                     open={isSharingDialogOpen}
                     onClose={handleCloseSharingDialog}
@@ -1190,7 +1169,7 @@ export default function Trip() {
                     tripID={tripID}
                     setViewers={setViewers}
                     setEditors={setEditors}
-                />{" "}
+                />
                 <AddDayDialog
                     open={isAddDayDialogOpen}
                     onClose={() => setIsAddDayDialogOpen(false)}
@@ -1211,12 +1190,12 @@ export default function Trip() {
                     handleMinutesChange={handleMinutesChange}
                     handleNotesChange={handleNotesChange}
                     handleRegenerateNode={handleRegenerateNode}
-                />{" "}
+                />
                 <RegenDayDialog
                     open={isRegenDayDialogOpen}
                     onClose={() => setIsRegenDayDialogOpen(false)}
                     onAccept={handleRegenerateDay}
-                />{" "}
+                />
             </Stack>
         </LoadScript>
     );
@@ -1288,7 +1267,6 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
 
     return (
         <Tooltip title="Save Trip" placement="left" arrow>
-            {" "}
             <IconButton variant="outlined" onClick={handleSave} disabled={disabled}>
                 {icon}
             </IconButton>
@@ -1365,7 +1343,7 @@ const SharingDialog = ({ open, onClose, viewers, editors, setViewers, setEditors
                         InputProps={{
                             readOnly: true
                         }}
-                    />{" "}
+                    />
                     <IconButton onClick={handleCopyLink} aria-label="copy trip link" color="primary">
                         {copied ? <CheckBoxOutlinedIcon color="success" /> : <ContentCopyIcon />}
                     </IconButton>
