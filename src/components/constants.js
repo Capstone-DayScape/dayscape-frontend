@@ -2,7 +2,7 @@
  * The minimum destinations allowed per day
  * @type {number}
  */
-export const MIN_DESTINATIONS_PER_DAY = 3;
+export const MIN_DESTINATIONS_PER_DAY = 2;
 /**
  * The maximum destinations allowed per day
  * @type {number}

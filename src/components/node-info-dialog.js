@@ -43,72 +43,72 @@ const NodeInfoDialog = ({
                     {selectedNode?.info}
                 </Typography>
                 {!isNaN(parseFloat(selectedNode?.rating)) && (
-                    <Box display="flex" alignItems="center" sx={{ mt: -0.75, mb: 2, color: "gray" }}>
+                    <Box display="flex" alignItems="center" sx={{ mt: -0.75, color: "gray" }}>
                         <Typography variant="body1" gutterBottom></Typography>
                         <Rating value={selectedNode?.rating} readOnly precision={0.5} />
                     </Box>
                 )}
-                <Stack direction="row" justifyContent="space-evenly" sx={{ mt: 3, mb: 2 }}>
-                    {selectedNode?.type && (
-                        <>
-                            <IconButton
-                                color="error"
-                                onClick={() => {
-                                    // TODO: Implement delete node functionality
-                                    console.log("Delete Node!");
-                                }}
-                                sx={{ border: "1px solid", borderRadius: "50%" }}>
-                                <RemoveCircleIcon />
-                            </IconButton>
-                            <IconButton
-                                color="primary"
-                                onClick={handleRegenerateAndClose}
-                                sx={{
-                                    border: "1px solid",
-                                    borderRadius: "50%",
-                                    padding: "8px",
-                                    "&:hover": {
-                                        backgroundColor: "rgba(0, 0, 0, 0.04)"
-                                    }
-                                }}>
-                                <SyncIcon />
-                            </IconButton>
-                        </>
-                    )}
-                    {selectedNode?.phone?.trim() && (
-                        <IconButton
-                            color="primary"
-                            href={`tel:${selectedNode.phone}`}
-                            sx={{
-                                border: "1px solid",
-                                borderRadius: "50%",
-                                padding: "8px",
-                                "&:hover": {
-                                    backgroundColor: "rgba(0, 0, 0, 0.04)"
-                                }
-                            }}>
-                            <CallIcon />
-                        </IconButton>
-                    )}
-                    {selectedNode?.website?.trim() && (
-                        <IconButton
-                            color="primary"
-                            href={selectedNode.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{
-                                border: "1px solid",
-                                borderRadius: "50%",
-                                padding: "8px",
-                                "&:hover": {
-                                    backgroundColor: "rgba(0, 0, 0, 0.04)"
-                                }
-                            }}>
-                            <PublicIcon />
-                        </IconButton>
-                    )}
-                </Stack>
             </DialogTitle>
+            <Stack direction="row" justifyContent="space-evenly" sx={{ my: 1 }}>
+                {selectedNode?.type && (
+                    <>
+                        <IconButton
+                            color="error"
+                            onClick={() => {
+                                // TODO: Implement delete node functionality
+                                console.log("Delete Node!");
+                            }}
+                            sx={{ border: "1px solid", borderRadius: "50%" }}>
+                            <RemoveCircleIcon />
+                        </IconButton>
+                        <IconButton
+                            color="warning"
+                            onClick={handleRegenerateAndClose}
+                            sx={{
+                                border: "1px solid",
+                                borderRadius: "50%",
+                                padding: "8px",
+                                "&:hover": {
+                                    backgroundColor: "rgba(0, 0, 0, 0.04)"
+                                }
+                            }}>
+                            <SyncIcon />
+                        </IconButton>
+                    </>
+                )}
+                {selectedNode?.phone?.trim() && (
+                    <IconButton
+                        color="primary"
+                        href={`tel:${selectedNode.phone}`}
+                        sx={{
+                            border: "1px solid",
+                            borderRadius: "50%",
+                            padding: "8px",
+                            "&:hover": {
+                                backgroundColor: "rgba(0, 0, 0, 0.04)"
+                            }
+                        }}>
+                        <CallIcon />
+                    </IconButton>
+                )}
+                {selectedNode?.website?.trim() && (
+                    <IconButton
+                        color="primary"
+                        href={selectedNode.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                            border: "1px solid",
+                            borderRadius: "50%",
+                            padding: "8px",
+                            "&:hover": {
+                                backgroundColor: "rgba(0, 0, 0, 0.04)"
+                            }
+                        }}>
+                        <PublicIcon />
+                    </IconButton>
+                )}
+            </Stack>
             <DialogContent>
                 <Stack direction="column" spacing={2}>
                     {selectedNode?.types && (

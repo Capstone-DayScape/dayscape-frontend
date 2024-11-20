@@ -973,13 +973,13 @@ export default function Trip() {
                                                                 </IconButton>
                                                             </Tooltip>
                                                         </Paper>
-                                                        <Paper variant="outlined" sx={{ borderColor: "rgba(25, 118, 210, 0.5)" }}>
+                                                        <Paper variant="outlined" sx={{ borderColor: "rgba(237, 108, 2, 0.5)" }}>
                                                             <Tooltip
                                                                 title="Regenerate Node"
                                                                 placement="bottom"
                                                                 arrow
                                                                 sx={{ justifySelf: "start" }}>
-                                                                <IconButton onClick={handleRegenerateNode} color="primary">
+                                                                <IconButton onClick={handleRegenerateNode} color="warning">
                                                                     <SyncIcon />
                                                                 </IconButton>
                                                             </Tooltip>
