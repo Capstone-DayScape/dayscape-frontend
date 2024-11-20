@@ -1143,6 +1143,7 @@ export default function Trip() {
                     handleMinutesChange={handleMinutesChange}
                     handleNotesChange={handleNotesChange}
                     handleRegenerateNode={handleRegenerateNode}
+                    handleDeleteNode={handleDeleteNode}
                 />
                 <RegenDayDialog
                     open={isRegenDayDialogOpen}

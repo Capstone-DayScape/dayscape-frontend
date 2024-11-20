@@ -28,10 +28,15 @@ const NodeInfoDialog = ({
     handleHoursChange,
     handleMinutesChange,
     handleNotesChange,
-    handleRegenerateNode
+    handleRegenerateNode,
+    handleDeleteNode
 }) => {
     const handleRegenerateAndClose = () => {
         handleRegenerateNode();
+        onClose();
+    };
+    const handleDeleteAndClose = () => {
+        handleDeleteNode();
         onClose();
     };
 
@@ -54,10 +59,7 @@ const NodeInfoDialog = ({
                     <>
                         <IconButton
                             color="error"
-                            onClick={() => {
-                                // TODO: Implement delete node functionality
-                                console.log("Delete Node!");
-                            }}
+                            onClick={handleDeleteAndClose}
                             sx={{ border: "1px solid", borderRadius: "50%" }}>
                             <RemoveCircleIcon />
                         </IconButton>
