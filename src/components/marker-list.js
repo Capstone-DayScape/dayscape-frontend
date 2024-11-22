@@ -54,9 +54,21 @@ export default function MarkerList({
         }
     };
 
-    const handleAddNode = (tag) => {
+    const handleAddNode = async (tag) => {
         // Checks if the tag already exists in the current day's placeResponses
+        /** @type {{results:google.maps.places.PlaceResult[], resultIndex:number, tag:string}} */
         const existingPlaceResponse = days[selectedDayIndex].placeResponses.find((response) => response.tag === tag);
+
+        /**
+         * Gets the next place result.
+         * @param {{results:google.maps.places.PlaceResult[], resultIndex:number, tag:string}} placeResponse Place response object
+         * @returns {google.maps.places.PlaceResult}
+         */
+        const getNextDestination = (placeResponse) => {
+            const result = placeResponse.results[placeResponse.resultIndex];
+            placeResponse.resultIndex = (placeResponse.resultIndex + 1) % placeResponse.results.length;
+            return result;
+        };
 
         // Adds it to the placeResponses if it doesn't exist
         if (!existingPlaceResponse) {
@@ -72,7 +84,6 @@ export default function MarkerList({
             };
             placeService.nearbySearch(request, async (results, status) => {
                 if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                    // console.log(results);
                     setDays((prev) => {
                         const updatedDays = [...prev];
                         updatedDays[selectedDayIndex].placeResponses = [
@@ -83,12 +94,6 @@ export default function MarkerList({
                     });
                 }
                 const placeResponse = days[selectedDayIndex].placeResponses.find((response) => response.tag === tag);
-
-                const getNextDestination = (placeResponse) => {
-                    const result = placeResponse.results[placeResponse.resultIndex];
-                    placeResponse.resultIndex = (placeResponse.resultIndex + 1) % placeResponse.results.length;
-                    return result;
-                };
 
                 const nextDestination = getNextDestination(placeResponse);
                 const nextDestinationDetails = await fetchPlaceDetails(nextDestination.place_id);
@@ -131,15 +136,51 @@ export default function MarkerList({
 
                 calculateRoute(location, rest, selectedDayIndex, transportMode);
                 onSelectedNode(null);
-                // console.log(placeResponse);
-                // console.log(nextDestination);
             });
             return;
         }
         // Continues if the tag already exists in the current day's placeResponses
-        // TODO: Add functionality for existing tags
-        console.log("Add new node!", tag);
-        console.log(existingPlaceResponse);
+        const nextDestination = getNextDestination(existingPlaceResponse);
+        const nextDestinationDetails = await fetchPlaceDetails(nextDestination.place_id);
+
+        const newNode = {
+            info: nextDestinationDetails.vicinity,
+            name: nextDestinationDetails.name,
+            phone: nextDestinationDetails.international_phone_number,
+            position: {
+                lat: nextDestinationDetails.geometry.location.lat(),
+                lng: nextDestinationDetails.geometry.location.lng()
+            },
+            rating: nextDestinationDetails.rating,
+            types: nextDestinationDetails.types,
+            user_ratings_total: nextDestinationDetails.user_ratings_total,
+            website: nextDestinationDetails.website,
+            label: `${days[selectedDayIndex].markers.length}`,
+            type: tag,
+            duration: { hours: 2, minutes: 0 }
+        };
+
+        const updatedMarkers = [...days[selectedDayIndex].markers, newNode];
+        // eslint-disable-next-line no-unused-vars
+        const [_, ...rest] = updatedMarkers;
+
+        setDays((prev) => {
+            const updatedDays = [...prev];
+            updatedDays[selectedDayIndex].markers = updatedMarkers;
+            updatedDays[selectedDayIndex].durations = {
+                ...prev[selectedDayIndex].durations,
+                [newNode.name]: { hours: 2, minutes: 0 }
+            };
+            return updatedDays;
+        });
+
+        const location = {
+            lat: tripData.startingLocation.latitude,
+            lng: tripData.startingLocation.longitude
+        };
+
+        calculateRoute(location, rest, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
+        onSelectedNode(null);
     };
 
     /**

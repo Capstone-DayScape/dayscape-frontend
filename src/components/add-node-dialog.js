@@ -47,7 +47,7 @@ export default function AddNodeDialog({ open, onClose, handleAddNode, days, sele
             default:
                 console.error("Invalid option selected");
         }
-        setSelectedTag(null);
+        setSelectedTag("");
         setOptionChecked("select");
         setTypedTag("");
         setInfoMessage({ message: "", variant: "" });
