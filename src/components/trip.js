@@ -820,6 +820,7 @@ export default function Trip() {
         setDays((prev) => {
             const newDayData = [...prev];
             newDayData[selectedDayIndex].markers = newMarkers;
+            delete newDayData[selectedDayIndex].durations[selectedNode.name]; // Remove the previous duration
             return newDayData;
         });
 
