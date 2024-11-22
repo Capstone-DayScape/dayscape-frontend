@@ -1179,7 +1179,7 @@ const TripTitle = ({ tripName, onTripNameChange }) => {
 const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
     const [icon, setIcon] = useState(<SaveIcon />);
 
-    const { getAccessTokenSilently } = useAuth0();
+    const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 
     useEffect(() => {
         setIcon(<SaveIcon />);
@@ -1187,6 +1187,10 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
 
     const handleSave = async () => {
         if (disabled) return;
+        if (!isAuthenticated) {
+            alert("Please log in or sign up to save this trip.");
+            return;
+        }
         try {
             const tripData = JSON.parse(sessionStorage.getItem("trip_data"));
             const accessToken = await getAccessTokenSilently();

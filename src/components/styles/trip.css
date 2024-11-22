@@ -16,7 +16,6 @@
 .trip-container {
     display: flex;
     flex-direction: column;
-    align-items: left;
     padding: 25px;
 }
 
@@ -29,12 +28,14 @@
 .map-container {
     flex: 1;
     width: 100%;
+    min-height: 230px;
     height: 80%; /* Make the map container take the full height */
     margin-bottom: 20px;
     transition: height 0.3s ease; /* Smooth transition for height change */
 }
 
 .map-container-half {
+    min-height: 230px;
     height: 28%; /* Adjust height when node info is visible */
 }
 
