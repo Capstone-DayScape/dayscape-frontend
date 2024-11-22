@@ -929,6 +929,7 @@ export default function Trip() {
                                 onSelectedNode={setSelectedNode}
                                 selectedNode={selectedNode}
                                 placeServiceRef={placeService}
+                                calculateRoute={calculateRoute}
                             />
                             <Typography variant="body1" mt={2} align="center" color="#686879">
                                 Total Time: {calculateTotalTripDuration()}

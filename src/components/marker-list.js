@@ -6,8 +6,31 @@ import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import React, { useState } from "react";
 import AddNodeDialog from "./add-node-dialog";
+import { getRadiusFromTransportationMode } from "./constants";
 
-export default function MarkerList({ tripData, selectedNode, onSelectedNode, selectedDayIndex, days }) {
+/**
+ * MarkerList component for displaying markers as nodes.
+ * @param {{days:Object[], name:string, startingDate:string, startingLocation:Object}} tripData Object from (local/session) storage.
+ * @param {Object} selectedNode Currently selected node
+ * @param {function} onSelectedNode Callback to change selected node
+ * @param {number} selectedDayIndex Index of the currently selected day
+ * @param {Object[]} days Array of days
+ * @param {function} setDays Callback to update days
+ * @param {React.MutableRefObject} placeServiceRef Reference to the Google Places API service
+ * @param {function} calculateRoute Callback to calculate route
+ * @returns {React.ReactElement} Element to display
+ * @constructor
+ */
+export default function MarkerList({
+    tripData,
+    selectedNode,
+    onSelectedNode,
+    selectedDayIndex,
+    days,
+    setDays,
+    placeServiceRef,
+    calculateRoute
+}) {
     const [isAddNodeDialogOpen, setAddNodeDialogOpen] = useState(false);
 
     /**
@@ -32,7 +55,109 @@ export default function MarkerList({ tripData, selectedNode, onSelectedNode, sel
     };
 
     const handleAddNode = (tag) => {
+        // Checks if the tag already exists in the current day's placeResponses
+        const existingPlaceResponse = days[selectedDayIndex].placeResponses.find((response) => response.tag === tag);
+
+        // Adds it to the placeResponses if it doesn't exist
+        if (!existingPlaceResponse) {
+            /** @type {google.maps.places.PlacesService} */
+            const placeService = placeServiceRef.current;
+            const transportMode = tripData.days[selectedDayIndex].transportationMode;
+            const radius = getRadiusFromTransportationMode(transportMode);
+            const request = {
+                location: { lat: tripData.startingLocation.latitude || 0, lng: tripData.startingLocation.longitude || 0 },
+                radius,
+                type: tag,
+                rankBy: window.google.maps.places.RankBy.PROMINENCE
+            };
+            placeService.nearbySearch(request, async (results, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    // console.log(results);
+                    setDays((prev) => {
+                        const updatedDays = [...prev];
+                        updatedDays[selectedDayIndex].placeResponses = [
+                            ...updatedDays[selectedDayIndex].placeResponses,
+                            { tag, results, resultIndex: 0 }
+                        ];
+                        return updatedDays;
+                    });
+                }
+                const placeResponse = days[selectedDayIndex].placeResponses.find((response) => response.tag === tag);
+
+                const getNextDestination = (placeResponse) => {
+                    const result = placeResponse.results[placeResponse.resultIndex];
+                    placeResponse.resultIndex = (placeResponse.resultIndex + 1) % placeResponse.results.length;
+                    return result;
+                };
+
+                const nextDestination = getNextDestination(placeResponse);
+                const nextDestinationDetails = await fetchPlaceDetails(nextDestination.place_id);
+
+                const newNode = {
+                    info: nextDestinationDetails.vicinity,
+                    name: nextDestinationDetails.name,
+                    phone: nextDestinationDetails.international_phone_number,
+                    position: {
+                        lat: nextDestinationDetails.geometry.location.lat(),
+                        lng: nextDestinationDetails.geometry.location.lng()
+                    },
+                    rating: nextDestinationDetails.rating,
+                    types: nextDestinationDetails.types,
+                    user_ratings_total: nextDestinationDetails.user_ratings_total,
+                    website: nextDestinationDetails.website,
+                    label: `${days[selectedDayIndex].markers.length}`,
+                    type: tag,
+                    duration: { hours: 2, minutes: 0 }
+                };
+
+                const updatedMarkers = [...days[selectedDayIndex].markers, newNode];
+                // eslint-disable-next-line no-unused-vars
+                const [_, ...rest] = updatedMarkers;
+
+                setDays((prev) => {
+                    const updatedDays = [...prev];
+                    updatedDays[selectedDayIndex].markers = updatedMarkers;
+                    updatedDays[selectedDayIndex].durations = {
+                        ...prev[selectedDayIndex].durations,
+                        [newNode.name]: { hours: 2, minutes: 0 }
+                    };
+                    return updatedDays;
+                });
+
+                const location = {
+                    lat: tripData.startingLocation.latitude,
+                    lng: tripData.startingLocation.longitude
+                };
+
+                calculateRoute(location, rest, selectedDayIndex, transportMode);
+                onSelectedNode(null);
+                // console.log(placeResponse);
+                // console.log(nextDestination);
+            });
+            return;
+        }
+        // Continues if the tag already exists in the current day's placeResponses
         console.log("Add new node!", tag);
+        console.log(existingPlaceResponse);
+    };
+
+    /**
+     * Gets the place details for the given placeId from the Google Places API.
+     * @param {string} placeId
+     * @returns {Promise<google.maps.places.PlaceResult>} Place details
+     */
+    const fetchPlaceDetails = async (placeId) => {
+        return new Promise((resolve, reject) => {
+            const placeService = placeServiceRef.current;
+
+            placeService.getDetails({ placeId }, (place, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    resolve(place);
+                } else {
+                    reject(status);
+                }
+            });
+        });
     };
 
     return (
