@@ -18,3 +18,23 @@ export const INFO_MESSAGE_VARIANT = {
     WARNING: "warning",
     ERROR: "error"
 };
+
+/**
+ * Returns the radius in meters based on the transportation mode
+ * @param {google.maps.TravelMode} transportationMode Mode of transportation
+ * @returns {number} Radius in meters
+ */
+export const getRadiusFromTransportationMode = (transportationMode) => {
+    switch (transportationMode) {
+        case "DRIVING":
+            return 5000;
+        case "WALKING":
+            return 1000;
+        case "BICYCLING":
+            return 2000;
+        case "TRANSIT":
+            return 3000;
+        default:
+            return 1500;
+    }
+};

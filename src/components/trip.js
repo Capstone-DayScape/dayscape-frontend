@@ -38,7 +38,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getTrip, saveTrip } from "../api";
 import AddDayDialog from "../components/add-day-dialog"; // Import the AddDayDialog component
 import NodeInfoDialog from "../components/node-info-dialog"; // Import the NodeInfoDialog component
-import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY } from "./constants";
+import { MAX_DESTINATIONS_PER_DAY, MIN_DESTINATIONS_PER_DAY, getRadiusFromTransportationMode } from "./constants";
 import "./styles/trip.css";
 import "./styles/styles.css";
 import MarkerList from "./marker-list";
@@ -338,23 +338,7 @@ export default function Trip() {
         const responses = [];
 
         const transportMode = tripData.days[dayIndex].transportationMode;
-        let radius;
-        switch (transportMode) {
-            case "DRIVING":
-                radius = 5000;
-                break;
-            case "WALKING":
-                radius = 1000;
-                break;
-            case "BICYCLING":
-                radius = 2000;
-                break;
-            case "TRANSIT":
-                radius = 3000;
-                break;
-            default:
-                radius = 1500;
-        }
+        let radius = getRadiusFromTransportationMode(transportMode);
 
         tags.forEach((tag) => {
             const request = {
@@ -465,7 +449,7 @@ export default function Trip() {
     /**
      * Gets the place details from the Google Places API.
      * @param {string} placeId Place ID
-     * @returns {Promise<google.maps.places.PlaceResult>}
+     * @returns {Promise<google.maps.places.PlaceResult>} Place details
      */
     const fetchPlaceDetails = async (placeId) => {
         return new Promise((resolve, reject) => {
@@ -940,9 +924,11 @@ export default function Trip() {
                             <MarkerList
                                 tripData={tripData}
                                 days={days}
+                                setDays={setDays}
                                 selectedDayIndex={selectedDayIndex}
                                 onSelectedNode={setSelectedNode}
                                 selectedNode={selectedNode}
+                                placeServiceRef={placeService}
                             />
                             <Typography variant="body1" mt={2} align="center" color="#686879">
                                 Total Time: {calculateTotalTripDuration()}

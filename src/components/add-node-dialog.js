@@ -20,7 +20,7 @@ import { translatePreferencesToTypes } from "../api";
 import { INFO_MESSAGE_VARIANT } from "./constants";
 
 export default function AddNodeDialog({ open, onClose, handleAddNode, days, selectedDayIndex }) {
-    const [selectedTag, setSelectedTag] = useState(null);
+    const [selectedTag, setSelectedTag] = useState("");
     const [typedTag, setTypedTag] = useState("");
     const [optionChecked, setOptionChecked] = useState("select");
     const [infoMessage, setInfoMessage] = useState({ message: "", variant: "" });
@@ -37,6 +37,7 @@ export default function AddNodeDialog({ open, onClose, handleAddNode, days, sele
                 const accessToken = isAuthenticated ? await getAccessTokenSilently() : null;
                 setInfoMessage({ message: "Translating preferences to types...", variant: INFO_MESSAGE_VARIANT.INFO });
                 await translatePreferencesToTypes(accessToken, [typedTag], (response) => {
+                    setInfoMessage({ message: `Translated to: ${response.matched_list[0]}`, variant: INFO_MESSAGE_VARIANT.INFO });
                     handleAddNode(response.matched_list[0]);
                     setInfoMessage({ message: "Done", variant: INFO_MESSAGE_VARIANT.SUCCESS });
                 });
