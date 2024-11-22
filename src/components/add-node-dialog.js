@@ -37,19 +37,21 @@ export default function AddNodeDialog({ open, onClose, handleAddNode, days, sele
                 const accessToken = isAuthenticated ? await getAccessTokenSilently() : null;
                 setInfoMessage({ message: "Translating preferences to types...", variant: INFO_MESSAGE_VARIANT.INFO });
                 await translatePreferencesToTypes(accessToken, [typedTag], (response) => {
-                    setInfoMessage({ message: `Translated to: ${response.matched_list[0]}`, variant: INFO_MESSAGE_VARIANT.INFO });
                     handleAddNode(response.matched_list[0]);
-                    setInfoMessage({ message: "Done", variant: INFO_MESSAGE_VARIANT.SUCCESS });
+                    setInfoMessage({
+                        message: `Translated to: ${response.matched_list[0]}. Done`,
+                        variant: INFO_MESSAGE_VARIANT.SUCCESS
+                    });
                 });
                 break;
             default:
                 console.error("Invalid option selected");
         }
-        onClose();
         setSelectedTag(null);
         setOptionChecked("select");
         setTypedTag("");
         setInfoMessage({ message: "", variant: "" });
+        onClose();
     };
 
     const handleOptionChange = (event) => {

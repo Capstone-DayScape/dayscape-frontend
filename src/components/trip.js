@@ -53,7 +53,7 @@ const existingTripID = localStorage.getItem("trip_id");
 let tripID = existingTripID ? existingTripID : "";
 
 export default function Trip() {
-    const { getAccessTokenSilently } = useAuth0();
+    const { isAuthenticated, getAccessTokenSilently } = useAuth0();
     const navigate = useNavigate();
 
     const [mapCenter, setMapCenter] = useState({ lat: -34.397, lng: 150.644 });
@@ -149,30 +149,35 @@ export default function Trip() {
     );
 
     const fetchTripData = useCallback(async () => {
-        try {
-            const accessToken = await getAccessTokenSilently();
-            if (tripID) {
-                await getTrip(accessToken, tripID, (tripData) => {
-                    sessionStorage.setItem("trip_data", JSON.stringify(tripData));
-                    localStorage.setItem("trip_data", JSON.stringify(tripData));
-                    fetchPermissions(tripID);
-                });
-                try {
-                    const response = await axios.get(`${config.backend_endpoint}/api/private/get_trip_name?trip_id=${tripID}`, {
-                        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+        if (isAuthenticated) {
+            try {
+                const accessToken = await getAccessTokenSilently();
+                if (tripID) {
+                    await getTrip(accessToken, tripID, (tripData) => {
+                        sessionStorage.setItem("trip_data", JSON.stringify(tripData));
+                        localStorage.setItem("trip_data", JSON.stringify(tripData));
+                        fetchPermissions(tripID);
                     });
-                    if (response.data.trip_name) {
-                        setTripName(response.data.trip_name);
-                        sessionStorage.setItem("trip_name", response.data.trip_name);
+                    try {
+                        const response = await axios.get(
+                            `${config.backend_endpoint}/api/private/get_trip_name?trip_id=${tripID}`,
+                            {
+                                headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+                            }
+                        );
+                        if (response.data.trip_name) {
+                            setTripName(response.data.trip_name);
+                            sessionStorage.setItem("trip_name", response.data.trip_name);
+                        }
+                    } catch (error) {
+                        console.error("Failed to fetch trip name:", error);
                     }
-                } catch (error) {
-                    console.error("Failed to fetch trip name:", error);
                 }
+            } catch (error) {
+                console.error("Failed to fetch trip data:", error);
             }
-        } catch (error) {
-            console.error("Failed to fetch trip data:", error);
         }
-    }, [getAccessTokenSilently, fetchPermissions]);
+    }, [getAccessTokenSilently, fetchPermissions, isAuthenticated]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);

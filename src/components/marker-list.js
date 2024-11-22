@@ -137,6 +137,7 @@ export default function MarkerList({
             return;
         }
         // Continues if the tag already exists in the current day's placeResponses
+        // TODO: Add functionality for existing tags
         console.log("Add new node!", tag);
         console.log(existingPlaceResponse);
     };
@@ -190,7 +191,9 @@ export default function MarkerList({
                                 minHeight="65px"
                                 textAlign="center"
                                 boxShadow={3}>
-                                <Typography variant="h6">{marker.name}</Typography>
+                                <Typography variant="h6" sx={{ userSelect: "none" }}>
+                                    {marker.name}
+                                </Typography>
                             </Box>
                             {index < days[selectedDayIndex].markers.length - 1 && (
                                 <Box ml={3} display="flex" alignItems="center">
@@ -223,7 +226,8 @@ export default function MarkerList({
                                                 width: "100px", // Set a fixed width
                                                 whiteSpace: "nowrap", // Prevent text from wrapping
                                                 overflow: "hidden", // Hide overflow text
-                                                textOverflow: "ellipsis" // Add ellipsis for overflow text
+                                                textOverflow: "ellipsis", // Add ellipsis for overflow text
+                                                userSelect: "none"
                                             }}>
                                             {days[selectedDayIndex].travelTimes[index]}
                                         </Typography>
