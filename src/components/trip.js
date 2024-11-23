@@ -335,10 +335,6 @@ export default function Trip() {
         }
 
         let requestLeft = tripData.days[dayIndex].dayTags.length;
-
-        // Set service reference
-        placeService.current = new window.google.maps.places.PlacesService(document.createElement("div"));
-
         const tags = tripData.days[dayIndex].dayTags;
         const responses = [];
 
@@ -945,6 +941,7 @@ export default function Trip() {
                                 id="map"
                                 onLoad={(map) => {
                                     mapRef.current = map;
+                                    placeService.current = new window.google.maps.places.PlacesService(map);
                                 }}
                                 mapContainerStyle={{
                                     width: "100%",
