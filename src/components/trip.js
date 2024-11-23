@@ -854,12 +854,8 @@ export default function Trip() {
                             mt: 3,
                             height: 50
                         }}>
-                        <Box display="flex" justifyContent="flex-start">
-                            <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
-                        </Box>
-                        <Box display="flex" justifyContent="flex-end">
-                            {hasEditPermission && <SaveTripButton tripName={tripName} fetchPermissions={fetchPermissions} />}
-                        </Box>
+                        <TripTitle tripName={tripName} onTripNameChange={(newName) => setTripName(newName)} />
+                        {hasEditPermission && <SaveTripButton tripName={tripName} fetchPermissions={fetchPermissions} />}
                     </Stack>
                     <Box display="flex" alignItems="center" justifyContent="center" my={3}>
                         <Box display="flex" alignItems="center">
@@ -972,7 +968,7 @@ export default function Trip() {
                                 )}
                             </GoogleMap>
                             {selectedNode && (
-                                <Card mt={2} p={2} sx={{ minHeight: "400px", width: "100%", mt: 2 }} className="node-info-popup">
+                                <Card mt={2} p={2} sx={{ minHeight: "430px", width: "100%", mt: 2 }} className="node-info-popup">
                                     <CardContent>
                                         <Box display="flex" justifyContent="space-between" alignItems="center">
                                             <Typography variant="h6" gutterBottom>
@@ -1149,34 +1145,37 @@ export default function Trip() {
 }
 
 const TripTitle = ({ tripName, onTripNameChange }) => {
-    const [isEditing, setIsEditing] = useState(false);
+    const [helperText, setHelperText] = useState("");
+
+    const handleTripNameChange = (event) => {
+        if (event.target.value.length < 5) {
+            setHelperText("Trip name must be at least 5 characters long");
+        } else {
+            setHelperText("");
+        }
+        onTripNameChange(event.target.value);
+    };
 
     return (
         <>
-            {isEditing ? (
-                <TextField
-                    variant="standard"
-                    value={tripName}
-                    onChange={(event) => onTripNameChange(event.target.value)}
-                    onBlur={() => setIsEditing(false)}
-                    slotProps={{ input: { style: { fontSize: "3em" }, disableUnderline: true } }}
-                    fullWidth
-                    autoFocus
-                />
-            ) : (
-                <Typography
-                    variant="h3"
-                    className="trip-title"
-                    onClick={() => setIsEditing(true)}
-                    sx={{ "&:hover": { cursor: "pointer" } }}>
-                    {tripName}
-                </Typography>
-            )}
+            <TextField
+                required
+                variant="standard"
+                value={tripName}
+                onChange={handleTripNameChange}
+                slotProps={{
+                    input: { style: { fontSize: "3em" }, disableUnderline: true },
+                    inputLabel: { style: { fontSize: "1.5em" } }
+                }}
+                label={helperText}
+                error={helperText !== ""}
+                fullWidth
+            />
         </>
     );
 };
 
-const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
+const SaveTripButton = ({ tripName, fetchPermissions }) => {
     const [icon, setIcon] = useState(<SaveIcon />);
 
     const { isAuthenticated, getAccessTokenSilently } = useAuth0();
@@ -1186,7 +1185,6 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
     }, [tripName]);
 
     const handleSave = async () => {
-        if (disabled) return;
         if (!isAuthenticated) {
             alert("Please log in or sign up to save this trip.");
             return;
@@ -1218,7 +1216,7 @@ const SaveTripButton = ({ tripName, disabled, fetchPermissions }) => {
 
     return (
         <Tooltip title="Save Trip" placement="left" arrow>
-            <IconButton variant="outlined" onClick={handleSave} disabled={disabled}>
+            <IconButton variant="outlined" onClick={handleSave} disabled={tripName.length < 5}>
                 {icon}
             </IconButton>
         </Tooltip>

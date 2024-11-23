@@ -49,7 +49,7 @@ const NodeInfoDialog = ({
                 </Typography>
                 {!isNaN(parseFloat(selectedNode?.rating)) && (
                     <Box display="flex" alignItems="center" sx={{ mt: -0.75, color: "gray" }}>
-                        <Typography variant="body1" gutterBottom></Typography>
+                        <Typography variant="body1" gutterBottom />
                         <Rating value={selectedNode?.rating} readOnly precision={0.5} />
                     </Box>
                 )}
