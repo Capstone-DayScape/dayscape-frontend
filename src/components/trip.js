@@ -808,6 +808,8 @@ export default function Trip() {
             console.error(error);
         }
         setIsRegenNodeDialogOpen(false);
+        setSelectedNode(null);
+        setIsNodeInfoDialogOpen(false);
     };
 
     const handleRemoveNode = () => {
@@ -834,8 +836,9 @@ export default function Trip() {
         };
         calculateRoute(location, rest, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
 
-        setSelectedNode(null);
         setIsRemoveNodeDialogOpen(false);
+        setSelectedNode(null);
+        setIsNodeInfoDialogOpen(false);
     };
 
     return (
@@ -1144,6 +1147,8 @@ export default function Trip() {
                     handleNotesChange={handleNotesChange}
                     handleRegenerateNode={handleRegenerateNode}
                     handleDeleteNode={handleRemoveNode}
+                    setIsRegenNodeDialogOpen={setIsRegenNodeDialogOpen}
+                    setIsRemoveNodeDialogOpen={setIsRemoveNodeDialogOpen}
                 />
                 <RegenDayDialog
                     open={isRegenDayDialogOpen}
