@@ -78,6 +78,7 @@ export default function Trip() {
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
     const placeService = useRef(null);
+    const directionsRendererRef = useRef(null);
 
     const [hasEditPermission, setHasEditPermission] = useState(true);
 
@@ -479,6 +480,8 @@ export default function Trip() {
      */
     const calculateRoute = (origin, places, dayIndex, transportMode) => {
         const directionsService = new window.google.maps.DirectionsService();
+        /** @type {google.maps.DirectionsRenderer} */
+        const directionsRenderer = directionsRendererRef.current;
         const waypoints = places.map((place) => ({
             location: { lat: place.position.lat, lng: place.position.lng },
             stopover: true
@@ -489,6 +492,7 @@ export default function Trip() {
             return;
         }
 
+        /** @type {google.maps.DirectionsRequest} */
         const request = {
             origin,
             destination: origin, // Set the destination to the origin to create a loop
@@ -512,6 +516,8 @@ export default function Trip() {
                         ...places[index],
                         label: `${i + 2}` // Update the label to reflect the new order
                     }));
+                    // Renders the route on the map
+                    directionsRenderer.setDirections(result);
                     setDays((prevDays) => {
                         const updatedDays = [...prevDays];
                         updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
@@ -951,6 +957,13 @@ export default function Trip() {
                                 onLoad={(map) => {
                                     mapRef.current = map;
                                     placeService.current = new window.google.maps.places.PlacesService(map);
+                                    directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+                                        map: map,
+                                        suppressMarkers: true,
+                                        suppressPolylines: true,
+                                        suppressBicyclingLayer: true,
+                                        suppressInfoWindows: true
+                                    });
                                 }}
                                 mapContainerStyle={{
                                     width: "100%",
@@ -958,7 +971,10 @@ export default function Trip() {
                                 }} // Ensure the map container has explicit width and height
                                 zoom={14}
                                 center={mapCenter}
-                                options={{ mapId: "651e26fab50abd83" }}>
+                                options={{
+                                    mapId: "651e26fab50abd83",
+                                    gestureHandling: "greedy"
+                                }}>
                                 {days[selectedDayIndex].markers.map(
                                     (marker, index) =>
                                         marker && (
