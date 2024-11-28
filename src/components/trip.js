@@ -1128,7 +1128,7 @@ export default function Trip() {
                     onClose={() => setIsAddDayDialogOpen(false)}
                     onSave={handleSaveDay}
                     startingLocation={tripData.startingLocation.name}
-                    previousDayDate={dayjs().format("YYYY-MM-DD")}
+                    previousDayDate={dayjs(tripData?.startingDate).format("YYYY-MM-DD")}
                 />
                 <NodeInfoDialog
                     open={isNodeInfoDialogOpen}
