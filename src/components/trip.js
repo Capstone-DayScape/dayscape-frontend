@@ -79,6 +79,7 @@ export default function Trip() {
     const mapRef = useRef(null);
     const placeService = useRef(null);
     const directionsRendererRef = useRef(null);
+    const latLngBoundsRef = useRef(null);
 
     const [hasEditPermission, setHasEditPermission] = useState(true);
 
@@ -873,7 +874,17 @@ export default function Trip() {
                             {days.map((_, index) => (
                                 <React.Fragment key={index}>
                                     <Box
-                                        onClick={() => setSelectedDayIndex(index)}
+                                        onClick={() => {
+                                            /** @type {google.maps.Map} */
+                                            const map = mapRef.current;
+                                            /** @type {google.maps.LatLngBounds} */
+                                            const bounds = latLngBoundsRef.current;
+                                            days[selectedDayIndex].markers.forEach((marker) => {
+                                                bounds.extend(marker.position);
+                                            });
+                                            map.fitBounds(bounds);
+                                            setSelectedDayIndex(index);
+                                        }}
                                         sx={{
                                             width: 40,
                                             height: 40,
@@ -964,6 +975,7 @@ export default function Trip() {
                                         suppressBicyclingLayer: true,
                                         suppressInfoWindows: true
                                     });
+                                    latLngBoundsRef.current = new window.google.maps.LatLngBounds();
                                 }}
                                 mapContainerStyle={{
                                     width: "100%",
