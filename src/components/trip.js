@@ -43,6 +43,8 @@ import "./styles/trip.css";
 import "./styles/styles.css";
 import MarkerList from "./marker-list";
 import { RegenDayDialog } from "./regen-day-dialog";
+import { RegenNodeDialog } from "./regen-node-dialog";
+import { RemoveNodeDialog } from "./remove-node-dialog";
 
 const libraries = ["places", "marker", "geometry"];
 
@@ -69,11 +71,14 @@ export default function Trip() {
     const [isAddDayDialogOpen, setIsAddDayDialogOpen] = useState(false);
     const [isNodeInfoDialogOpen, setIsNodeInfoDialogOpen] = useState(false);
     const [isRegenDayDialogOpen, setIsRegenDayDialogOpen] = useState(false);
+    const [isRegenNodeDialogOpen, setIsRegenNodeDialogOpen] = useState(false);
+    const [isRemoveNodeDialogOpen, setIsRemoveNodeDialogOpen] = useState(false);
     const [tripName, setTripName] = useState(tripData.name ? tripData.name : "Untitled Trip");
 
     const polylineRef = useRef(null);
     const mapRef = useRef(null);
     const placeService = useRef(null);
+    const directionsRendererRef = useRef(null);
 
     const [hasEditPermission, setHasEditPermission] = useState(true);
 
@@ -475,6 +480,8 @@ export default function Trip() {
      */
     const calculateRoute = (origin, places, dayIndex, transportMode) => {
         const directionsService = new window.google.maps.DirectionsService();
+        /** @type {google.maps.DirectionsRenderer} */
+        const directionsRenderer = directionsRendererRef.current;
         const waypoints = places.map((place) => ({
             location: { lat: place.position.lat, lng: place.position.lng },
             stopover: true
@@ -485,6 +492,7 @@ export default function Trip() {
             return;
         }
 
+        /** @type {google.maps.DirectionsRequest} */
         const request = {
             origin,
             destination: origin, // Set the destination to the origin to create a loop
@@ -508,6 +516,8 @@ export default function Trip() {
                         ...places[index],
                         label: `${i + 2}` // Update the label to reflect the new order
                     }));
+                    // Renders the route on the map
+                    directionsRenderer.setDirections(result);
                     setDays((prevDays) => {
                         const updatedDays = [...prevDays];
                         updatedDays[dayIndex].markers = [updatedDays[dayIndex].markers[0], ...reorderedMarkers];
@@ -803,9 +813,12 @@ export default function Trip() {
         } catch (error) {
             console.error(error);
         }
+        setIsRegenNodeDialogOpen(false);
+        setSelectedNode(null);
+        setIsNodeInfoDialogOpen(false);
     };
 
-    const handleDeleteNode = () => {
+    const handleRemoveNode = () => {
         const idxToRemove = parseInt(selectedNode.label) - 1;
 
         const { markers } = days[selectedDayIndex];
@@ -829,7 +842,9 @@ export default function Trip() {
         };
         calculateRoute(location, rest, selectedDayIndex, tripData.days[selectedDayIndex].transportationMode);
 
+        setIsRemoveNodeDialogOpen(false);
         setSelectedNode(null);
+        setIsNodeInfoDialogOpen(false);
     };
 
     return (
@@ -858,7 +873,18 @@ export default function Trip() {
                             {days.map((_, index) => (
                                 <React.Fragment key={index}>
                                     <Box
-                                        onClick={() => setSelectedDayIndex(index)}
+                                        onClick={() => {
+                                            /** @type {google.maps.Map} */
+                                            const map = mapRef.current;
+                                            /** @type {google.maps.LatLngBounds} */
+                                            const bounds = new window.google.maps.LatLngBounds();
+
+                                            days[index].markers.forEach((marker) => {
+                                                bounds.extend(marker.position);
+                                            });
+                                            map.fitBounds(bounds);
+                                            setSelectedDayIndex(index);
+                                        }}
                                         sx={{
                                             width: 40,
                                             height: 40,
@@ -942,6 +968,13 @@ export default function Trip() {
                                 onLoad={(map) => {
                                     mapRef.current = map;
                                     placeService.current = new window.google.maps.places.PlacesService(map);
+                                    directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+                                        map: map,
+                                        suppressMarkers: true,
+                                        suppressPolylines: true,
+                                        suppressBicyclingLayer: true,
+                                        suppressInfoWindows: true
+                                    });
                                 }}
                                 mapContainerStyle={{
                                     width: "100%",
@@ -949,7 +982,10 @@ export default function Trip() {
                                 }} // Ensure the map container has explicit width and height
                                 zoom={14}
                                 center={mapCenter}
-                                options={{ mapId: "651e26fab50abd83" }}>
+                                options={{
+                                    mapId: "651e26fab50abd83",
+                                    gestureHandling: "greedy"
+                                }}>
                                 {days[selectedDayIndex].markers.map(
                                     (marker, index) =>
                                         marker && (
@@ -976,7 +1012,11 @@ export default function Trip() {
                                                     <>
                                                         <Paper variant="outlined" sx={{ borderColor: "rgba(211, 47, 47, 0.5)" }}>
                                                             <Tooltip title="Delete Node" placement="bottom" arrow>
-                                                                <IconButton onClick={handleDeleteNode} color="error">
+                                                                <IconButton
+                                                                    onClick={() => {
+                                                                        setIsRemoveNodeDialogOpen(true);
+                                                                    }}
+                                                                    color="error">
                                                                     <RemoveCircleIcon />
                                                                 </IconButton>
                                                             </Tooltip>
@@ -987,7 +1027,11 @@ export default function Trip() {
                                                                 placement="bottom"
                                                                 arrow
                                                                 sx={{ justifySelf: "start" }}>
-                                                                <IconButton onClick={handleRegenerateNode} color="warning">
+                                                                <IconButton
+                                                                    onClick={() => {
+                                                                        setIsRegenNodeDialogOpen(true);
+                                                                    }}
+                                                                    color="warning">
                                                                     <SyncIcon />
                                                                 </IconButton>
                                                             </Tooltip>
@@ -1114,7 +1158,7 @@ export default function Trip() {
                     onClose={() => setIsAddDayDialogOpen(false)}
                     onSave={handleSaveDay}
                     startingLocation={tripData.startingLocation.name}
-                    previousDayDate={dayjs().format("YYYY-MM-DD")}
+                    previousDayDate={dayjs(tripData?.startingDate).format("YYYY-MM-DD")}
                 />
                 <NodeInfoDialog
                     open={isNodeInfoDialogOpen}
@@ -1129,12 +1173,25 @@ export default function Trip() {
                     handleMinutesChange={handleMinutesChange}
                     handleNotesChange={handleNotesChange}
                     handleRegenerateNode={handleRegenerateNode}
-                    handleDeleteNode={handleDeleteNode}
+                    handleDeleteNode={handleRemoveNode}
+                    setIsRegenNodeDialogOpen={setIsRegenNodeDialogOpen}
+                    setIsRemoveNodeDialogOpen={setIsRemoveNodeDialogOpen}
                 />
                 <RegenDayDialog
                     open={isRegenDayDialogOpen}
                     onClose={() => setIsRegenDayDialogOpen(false)}
                     onAccept={handleRegenerateDay}
+                />
+                <RegenNodeDialog
+                    open={isRegenNodeDialogOpen}
+                    onClose={() => setIsRegenNodeDialogOpen(false)}
+                    onAccept={handleRegenerateNode}
+                    tag={selectedNode?.type}
+                />
+                <RemoveNodeDialog
+                    open={isRemoveNodeDialogOpen}
+                    onClose={() => setIsRemoveNodeDialogOpen(false)}
+                    onAccept={handleRemoveNode}
                 />
             </Stack>
         </LoadScript>

@@ -235,6 +235,12 @@ export default function MarkerList({
                                 <Typography variant="h6" sx={{ userSelect: "none" }}>
                                     {marker.name}
                                 </Typography>
+                                {marker.duration && (
+                                    <Typography variant="body2" sx={{ userSelect: "none" }}>
+                                        {days[selectedDayIndex].durations[marker.name].hours}h{" "}
+                                        {days[selectedDayIndex].durations[marker.name].minutes}m
+                                    </Typography>
+                                )}
                             </Box>
                             {index < days[selectedDayIndex].markers.length - 1 && (
                                 <Box ml={3} display="flex" alignItems="center">

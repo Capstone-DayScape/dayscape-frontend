@@ -1,11 +1,11 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from "@mui/material";
 
-export const RegenDayDialog = ({ open, onClose, onAccept }) => {
+export const RemoveNodeDialog = ({ open, onClose, onAccept }) => {
     return (
         <Dialog open={open}>
-            <DialogTitle>Do you want to regenerate this day?</DialogTitle>
+            <DialogTitle>Do you want to remove this node?</DialogTitle>
             <DialogContent>
-                <DialogContentText>This will replace all nodes for this day with new ones.</DialogContentText>
+                <DialogContentText>This will remove the current node.</DialogContentText>
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancel</Button>

@@ -28,18 +28,9 @@ const NodeInfoDialog = ({
     handleHoursChange,
     handleMinutesChange,
     handleNotesChange,
-    handleRegenerateNode,
-    handleDeleteNode
+    setIsRegenNodeDialogOpen,
+    setIsRemoveNodeDialogOpen
 }) => {
-    const handleRegenerateAndClose = () => {
-        handleRegenerateNode();
-        onClose();
-    };
-    const handleDeleteAndClose = () => {
-        handleDeleteNode();
-        onClose();
-    };
-
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>
@@ -59,13 +50,17 @@ const NodeInfoDialog = ({
                     <>
                         <IconButton
                             color="error"
-                            onClick={handleDeleteAndClose}
+                            onClick={() => {
+                                setIsRemoveNodeDialogOpen(true);
+                            }}
                             sx={{ border: "1px solid", borderRadius: "50%" }}>
                             <RemoveCircleIcon />
                         </IconButton>
                         <IconButton
                             color="warning"
-                            onClick={handleRegenerateAndClose}
+                            onClick={() => {
+                                setIsRegenNodeDialogOpen(true);
+                            }}
                             sx={{
                                 border: "1px solid",
                                 borderRadius: "50%",
